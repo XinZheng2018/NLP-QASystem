@@ -50,14 +50,12 @@ def document_sep(filename):
                 print(line)
                 numbers = [int(word) for word in line.split() if word.isdigit()]
                 if rank != numbers[1]:
-                    print("length is")
-                    print(len(doc))
-                    print("numbers are:")
-                    print(numbers)
-                    print("rank is: ")
-                    print(rank)
                     doc = []
                     rank = numbers[1]
+
+            elif line.startswith("<FIELDID>"):
+                # function to preprocess other tags
+                process_data()
 
             # document separated to lines
             elif line.startswith("<P>"):
@@ -78,14 +76,17 @@ def document_sep(filename):
             # in rank 21:
             # <memo> <Caption> <LeadPara> <Section> needs to be cover
             # also, I think the case where header goes to the next line need to be covered (not sure)
-            elif line.startswith("<HL>") or line.startswith("<HEAD>"):
-                for word in line.split():
-                    if not word in stop_words and (word != "</HL>" or word != "</HEAD>"):
-                        doc.append(word)
-            elif line.startswith("<AUTHOR>"):
-                for word in line.split():
-                    if not word in stop_words and word != "</AUTHOR>":
-                        doc.append(word)
+            # code below is covered in the function
+
+
+            # elif line.startswith("<HL>") or line.startswith("<HEAD>"):
+            #     for word in line.split():
+            #         if not word in stop_words and (word != "</HL>" or word != "</HEAD>"):
+            #             doc.append(word)
+            # elif line.startswith("<AUTHOR>"):
+            #     for word in line.split():
+            #         if not word in stop_words and word != "</AUTHOR>":
+            #             doc.append(word)
             elif line.startswith("<TEXT>"):
                 next_line = next(f)
                 # repeated code
