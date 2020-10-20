@@ -70,16 +70,6 @@ def document_sep(filename):
                     current_line = next(f)
                     print("hi")
 
-                    # if current_line.startswith("<FILEID>"):
-                    #     print("fieldid")
-                    #     reg_tokenizer = nltk.RegexpTokenizer(r'\w+')
-                    #     while current_line.startswith("<Text>")==False:
-                    #         tokens = reg_tokenizer.tokenize(current_line)
-                    #         refined_tokens = [x.strip() for x in tokens]
-                    #         dict_document_tokenblocks[current_docno].extend(refined_tokens)
-                    #         current_line = next(f)
-                    #         print("fieldid")
-
                     while "Rank" not in current_line:
                         current_tokens = large_scale_tokenizer.tokenize(current_line)
                         filter_token = [word for word in current_tokens if not word in stop_words]
