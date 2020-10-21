@@ -42,10 +42,20 @@ new_added_stop_words = ['DATE','SECTION','P','LENGTH','HEADLINE','BYLINE','TEXT'
 for ele in new_added_stop_words:
     stop_words.add(ele)
 filename = './training/qadata/top_docs_test.0'
-def document_sep(filename):
+#test_filename =
+def chunks(list, n):
+    final_list =[]
+    print("start chunks")
+    for i in range(0, len(list), n):
+        temp_list = list[i:i+n]
+        final_list.append(temp_list)
+        print("in the chunk")
+    return final_list
+def document_sep(filename,n=20):
     rank = 0
     doc = []
-    token_blocks = []
+    candidate_passage = []
+
     dict_document_tokenblocks ={}
     with open(filename, 'r', encoding='utf-8-sig') as f:
         #large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+,?\d+|\s\w+|\w+\s')
@@ -73,18 +83,24 @@ def document_sep(filename):
                     while "Rank" not in current_line:
                         current_tokens = large_scale_tokenizer.tokenize(current_line)
                         filter_token = [word for word in current_tokens if not word in stop_words]
-                        dict_document_tokenblocks[current_docno].extend(filter_token)
+                        doc.extend(filter_token)
                         current_line=next(f)
-
+                        print("what's up'")
+                    print("end of the while loop")
+                    candidate_passage = chunks(doc,n)
+                    dict_document_tokenblocks[current_docno]=candidate_passage
         except StopIteration:
             print('EOF!')
+            candidate_passage = chunks(doc, n)
+            dict_document_tokenblocks[current_docno] = candidate_passage
             return dict_document_tokenblocks
 
     return dict_document_tokenblocks
 
 result = document_sep(filename)
 print(result)
-#todo:
+
+
 
     # document separated to lines
             # elif line.startswith("<P>"):
