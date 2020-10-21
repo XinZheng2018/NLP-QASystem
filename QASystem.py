@@ -38,9 +38,10 @@ data structre:  a list of document for each qid , so it will be 50*20 dimension 
 """
 new_added_stop_words = ['DATE','SECTION','P','LENGTH','HEADLINE','BYLINE','TEXT','DNO','TYPE','SUBJECT','DOC','DOCID','COUNTRY','EDITION','NAME','PUBDATE',
                'DAY','MONTH','PG','COL','PUBYEAR','REGION','FEATURE','STATE','WORD','CT','DATELINE','COPYRIGHT','LIMLEN','LANGUAGE','FILEID','FIRST','SECOND',
-                        'HEAD','BYLINE',]
+                        'HEAD','BYLINE','HL']
 for ele in new_added_stop_words:
     stop_words.add(ele)
+
 filename = './training/qadata/top_docs_test.0'
 #test_filename =
 def chunks(list, n):
@@ -51,6 +52,7 @@ def chunks(list, n):
         final_list.append(temp_list)
         print("in the chunk")
     return final_list
+
 def document_sep(filename,n=20):
     rank = 0
     doc = []
@@ -59,7 +61,7 @@ def document_sep(filename,n=20):
     dict_document_tokenblocks ={}
     with open(filename, 'r', encoding='utf-8-sig') as f:
         #large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+,?\d+|\s\w+|\w+\s')
-        large_scale_tokenizer = nltk.RegexpTokenizer(r'\w+')
+        large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+\smillion|\d+,?\d+|\w+')
         try:
             current_line = next(f)
             while True:
@@ -78,15 +80,15 @@ def document_sep(filename,n=20):
                     current_docno = current_line.split()[1]
                     dict_document_tokenblocks[current_docno] = []
                     current_line = next(f)
-                    print("hi")
+
 
                     while "Rank" not in current_line:
                         current_tokens = large_scale_tokenizer.tokenize(current_line)
                         filter_token = [word for word in current_tokens if not word in stop_words]
                         doc.extend(filter_token)
                         current_line=next(f)
-                        print("what's up'")
-                    print("end of the while loop")
+
+
                     candidate_passage = chunks(doc,n)
                     dict_document_tokenblocks[current_docno]=candidate_passage
         except StopIteration:
