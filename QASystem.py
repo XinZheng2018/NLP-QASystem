@@ -53,7 +53,7 @@ new_added_stop_words = ['DATE','SECTION','P','LENGTH','HEADLINE','BYLINE','TEXT'
 for ele in new_added_stop_words:
     stop_words.add(ele)
 
-filename = './training/topdocs/top_docs.0'
+filename = './training/topdocs/top_docs.3'
 #test_filename =
 def chunks(list, n):
     final_list =[]
@@ -153,23 +153,26 @@ candidate_passage, voc_list = document_sep(filename)
 bow,question_vectors = vectorize(candidate_passage,voc_list,question)
 top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
 
-print(bow)
-print(top_n_indices)
+#print(bow)
+for index in top_n_indices:
+    print(candidate_passage[index])
+    print(len(candidate_passage[index]))
+#print(top_n_indices)
 
 
 # use spacy to assign labels to each word in candidate passage
-sp = spacy.load('/opt/anaconda3/lib/python3.7/site-packages/en_core_web_sm')
+#sp = spacy.load('/opt/anaconda3/lib/python3.7/site-packages/en_core_web_sm')
 
 passage_with_label = []
 
-for i in top_n_indices:
-    passage = sp(candidate_passage[i])
-    entity = [ent for ent in passage.ents]
-    passage_with_label.append(entity)
-
-for passage in passage_with_label:
-    for word in passage:
-        print(word.text + "-" + word.label_)
+# for i in top_n_indices:
+#     passage = sp(candidate_passage[i])
+#     entity = [ent for ent in passage.ents]
+#     passage_with_label.append(entity)
+#
+# for passage in passage_with_label:
+#     for word in passage:
+#         print(word.text + "-" + word.label_)
 
 answer_key = []
 # for query in question:
