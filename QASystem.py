@@ -5,6 +5,7 @@ import re
 
 path = './training/qadata/questions.txt'
 stop_words = set(nltk.corpus.stopwords.words('english'))
+print(stop_words)
 def preprocessing_question(filename):
     """
     Preprocessing the question file
@@ -135,6 +136,7 @@ def compute_similarity_find_max(bow,question_vectors,N):
     for vectors in bow:
         temp_sim = np.dot(vectors,question_vectors)
         sim_list.append(temp_sim)
+    print(sim_list)
 
         # if temp_sim > max_similariy:
         #     max_similariy=temp_sim
@@ -149,23 +151,21 @@ def compute_similarity_find_max(bow,question_vectors,N):
     #x.reverse()
     # print(x)
     top_n_indices = np.argsort(sim_list)[-N:]
-    # #top_n_indices.reverse()
-    # print(top_n_indices)
     result = top_n_indices.tolist()
-    print(result)
-    result.reverse
-    print(result)
-    return top_n_indices
+    result.reverse()
+    return result
+
 
 question = preprocessing_question(path)
 candidate_passage, voc_list = document_sep(filename)
 bow,question_vectors = vectorize(candidate_passage,voc_list,question)
 top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
 
-# print(bow)
-# print(top_n_indices)
 
-#print(question)
+
+for index in top_n_indices:
+    print(candidate_passage[index])
+
 
 # add pos tag for questions
 question_with_tag = {}
@@ -247,6 +247,8 @@ for num in question_with_tag:
                 nl = True
                 answer_key[num] = ["UNDEFINED"]
 print(answer_key)
+print(question_with_tag)
+print(candidate_passage)
 
 
 
@@ -260,32 +262,32 @@ for i in top_n_indices:
     for child in ne_tree:
         if type(child) == nltk.tree.Tree:
             ''.join(x[0] for x in child.leaves())
-    pattern = 'NP: {<NNP.*>*}'
+    # pattern = 'NP: {<NNP.*>*}'
     # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
-    # pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>*}'
+    pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
     np_parser = nltk.RegexpParser(pattern)
     np_parser.parse(passage)
     t = np_parser.parse(passage)
     print(t)
 
 # add tags using spacy
-# import spacy
-# sp = spacy.load('en_core_web_sm')
-#
-# for i in top_n_indices:
-#     passage_str =' '.join([str(elem) for elem in candidate_passage[i]])
-#     passage = sp(passage_str)
-#     passage_with_label.append(passage)
-#
-# answer_list = set([])
-#
-# for passage in passage_with_label:
-#     for entity in passage.ents:
-#         print(entity.text + ' - ' + entity.label_ + ' - ' + str(spacy.explain(entity.label_)))
-#         if entity.label_ == "PERSON" or entity.label == "ORG":
-#             answer = entity.text
-#             answer_list.add(answer)
-# print(answer_list)
+import spacy
+sp = spacy.load('en_core_web_sm')
+
+for i in top_n_indices:
+    passage_str =' '.join([str(elem) for elem in candidate_passage[i]])
+    passage = sp(passage_str)
+    passage_with_label.append(passage)
+
+answer_list = set([])
+
+for passage in passage_with_label:
+    for entity in passage.ents:
+        print(entity.text + ' - ' + entity.label_ + ' - ' + str(spacy.explain(entity.label_)))
+        if entity.label_ == "PERSON" or entity.label == "ORG":
+            answer = entity.text
+            answer_list.add(answer)
+print(answer_list)
 
 
 #print(len(question))
