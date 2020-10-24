@@ -53,7 +53,7 @@ new_added_stop_words = ['DATE','SECTION','P','LENGTH','HEADLINE','BYLINE','TEXT'
 for ele in new_added_stop_words:
     stop_words.add(ele)
 
-filename = './training/topdocs/top_docs.0'
+filename = './training/topdocs/top_docs.3'
 #test_filename =
 def chunks(list, n):
     final_list =[]
@@ -159,6 +159,11 @@ top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
 
 
 
+
+# use spacy to assign labels to each word in candidate passage
+#sp = spacy.load('/opt/anaconda3/lib/python3.7/site-packages/en_core_web_sm')
+
+
 for index in top_n_indices:
     print(candidate_passage[index])
 
@@ -170,124 +175,126 @@ for ques_number in question:
 print(question_with_tag)
 
 # dicide answer types based on different questions
-answer_key = {}
-nl = False
-spa = False
-for num in question_with_tag:
-    quest = question_with_tag[num]
-    for i in range(0,len(quest)):
-            if re.search('Where',quest[i][0], flags=re.IGNORECASE):
-                answer_key[num] = ["ORG", "COUNTRIES"]
-                spa = True
-                break
-            elif re.search('When',quest[i][0], flags=re.IGNORECASE):
-                answer_key[num] = ["DATE", "TIME"]
-                spa = True
-                break
-            elif re.search('Who',quest[i][0], flags=re.IGNORECASE):
-                answer_key[num] = ["PERSON", "ORG"]
-                spa = True
-                break
-            elif re.search('What',quest[i][0], flags=re.IGNORECASE):
-                nl = True
-                if quest[i+1][1] == "NN" or quest[i+1][1] == "NNS" or  quest[i+1][1] == "VB" or quest[i+1][1] == "VBD" or \
-                        quest[i+1][1] == "VBZ" or quest[i+1][1] == "VBN" or quest[i+1][1] == "JJ" or \
-                        quest[i+1][1] == "JJR" or quest[i+1][1] == "DT":
+def question_extraction(question_with_tag):
+    answer_key = {}
+    nl = False
+    spa = False
+    for num in question_with_tag:
+        quest = question_with_tag[num]
+        for i in range(0,len(quest)):
+                if re.search('Where',quest[i][0], flags=re.IGNORECASE):
+                    answer_key[num] = ["ORG", "COUNTRIES"]
+                    spa = True
+                    break
+                elif re.search('When',quest[i][0], flags=re.IGNORECASE):
+                    answer_key[num] = ["DATE", "TIME"]
+                    spa = True
+                    break
+                elif re.search('Who',quest[i][0], flags=re.IGNORECASE):
+                    answer_key[num] = ["PERSON", "ORG"]
+                    spa = True
+                    break
+                elif re.search('What',quest[i][0], flags=re.IGNORECASE):
+                    nl = True
+                    if quest[i+1][1] == "NN" or quest[i+1][1] == "NNS" or  quest[i+1][1] == "VB" or quest[i+1][1] == "VBD" or \
+                            quest[i+1][1] == "VBZ" or quest[i+1][1] == "VBN" or quest[i+1][1] == "JJ" or \
+                            quest[i+1][1] == "JJR" or quest[i+1][1] == "DT":
+                        answer_key[num] = ["NNP", "NN", "NNS"]
+                        if quest[i+1][0] == "continent" or quest[i+1][0] == "nationality" or quest[i+1][0] == "city" or quest[i+1][0] == "province":
+                            nl = False
+                            spa = True
+                            answer_key[num] = ["ORG", "COUNTRIES"]
+                            break
+                        elif quest[i+1][0] == "population":
+                            answer_key[num] = ["CD"]
+                            break
+                        elif quest[i+1][0] == "year":
+                            nl = False
+                            spa = True
+                            answer_key[num] = ["DATE", "TIME"]
+                            break
+                        elif quest[i+1][0] == "zip":
+                            answer_key[num] = ["CD"]
+                            break
+                        break
+                    else:
+                        answer_key[num] = ["UNDEFINED"]
+                        break
+                elif quest[0][1] == "IN":
+                    nl = True
+                    answer_key[num] = ["VB", "VBZ", "VBD", "VBN"]
+                    if quest[1][1] == "JJ":
+                        answer_key[num] = ["NNP", "NN", "NNS"]
+                    break
+                elif quest[0][1] == "NN" or quest[0][1] == "NNP":
+                    nl = True
                     answer_key[num] = ["NNP", "NN", "NNS"]
-                    if quest[i+1][0] == "continent" or quest[i+1][0] == "nationality" or quest[i+1][0] == "city" or quest[i+1][0] == "province":
+                    if quest[1][0] == "city":
                         nl = False
                         spa = True
                         answer_key[num] = ["ORG", "COUNTRIES"]
-                        break
-                    elif quest[i+1][0] == "population":
+                    break
+                elif quest[0][0] == "How":
+                    nl = True
+                    answer_key[num] = ["NNP", "NN", "NNS"]
+                    if quest[1][0] == "many":
+                        nl = True
                         answer_key[num] = ["CD"]
                         break
-                    elif quest[i+1][0] == "year":
-                        nl = False
-                        spa = True
-                        answer_key[num] = ["DATE", "TIME"]
-                        break
-                    elif quest[i+1][0] == "zip":
-                        answer_key[num] = ["CD"]
-                        break
+                elif quest[0][1] == "MD":
+                    nl = True
+                    answer_key[num] = ["NNP", "NN", "NNS"]
                     break
                 else:
-                    answer_key[num] = ["UNDEFINED"]
-                    break
-            elif quest[0][1] == "IN":
-                nl = True
-                answer_key[num] = ["VB", "VBZ", "VBD", "VBN"]
-                if quest[1][1] == "JJ":
-                    answer_key[num] = ["NNP", "NN", "NNS"]
-                break
-            elif quest[0][1] == "NN" or quest[0][1] == "NNP":
-                nl = True
-                answer_key[num] = ["NNP", "NN", "NNS"]
-                if quest[1][0] == "city":
-                    nl = False
-                    spa = True
-                    answer_key[num] = ["ORG", "COUNTRIES"]
-                break
-            elif quest[0][0] == "How":
-                nl = True
-                answer_key[num] = ["NNP", "NN", "NNS"]
-                if quest[1][0] == "many":
                     nl = True
-                    answer_key[num] = ["CD"]
-                    break
-            elif quest[0][1] == "MD":
-                nl = True
-                answer_key[num] = ["NNP", "NN", "NNS"]
-                break
-            else:
-                nl = True
-                answer_key[num] = ["UNDEFINED"]
-print(answer_key)
-print(question_with_tag)
-print(candidate_passage)
+                    answer_key[num] = ["UNDEFINED"]
+    # print(answer_key)
+    # print(question_with_tag)
+    # print(candidate_passage)
 
 
-
+ import spacy
 passage_with_label = []
-
+def answer_extract(nltk):
 # add tags using nltk
-for i in top_n_indices:
-    passage = nltk.pos_tag(candidate_passage[i])
-    print(passage)
-    ne_tree = nltk.ne_chunk(passage)
-    for child in ne_tree:
-        if type(child) == nltk.tree.Tree:
-            ''.join(x[0] for x in child.leaves())
-    # pattern = 'NP: {<NNP.*>*}'
-    # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
-    pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
-    np_parser = nltk.RegexpParser(pattern)
-    np_parser.parse(passage)
-    t = np_parser.parse(passage)
-    print(t)
+    if nltk:
+        for i in top_n_indices:
+            passage = nltk.pos_tag(candidate_passage[i])
+            # print(passage)
+            ne_tree = nltk.ne_chunk(passage)
+            for child in ne_tree:
+                if type(child) == nltk.tree.Tree:
+                    ''.join(x[0] for x in child.leaves())
+            # pattern = 'NP: {<NNP.*>*}'
+            # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
+            pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
+            np_parser = nltk.RegexpParser(pattern)
+            np_parser.parse(passage)
+            t = np_parser.parse(passage)
+            # print(t)
+        return None
 
-# add tags using spacy
-import spacy
-sp = spacy.load('en_core_web_sm')
+    # add tags using spacy
+    else:
+        sp = spacy.load('en_core_web_sm')
 
-for i in top_n_indices:
-    passage_str =' '.join([str(elem) for elem in candidate_passage[i]])
-    passage = sp(passage_str)
-    passage_with_label.append(passage)
+        for i in top_n_indices:
+            passage_str =' '.join([str(elem) for elem in candidate_passage[i]])
+            passage = sp(passage_str)
+            passage_with_label.append(passage)
 
-answer_list = set([])
+        answer_list = set([])
 
-for passage in passage_with_label:
-    for entity in passage.ents:
-        print(entity.text + ' - ' + entity.label_ + ' - ' + str(spacy.explain(entity.label_)))
-        if entity.label_ == "PERSON" or entity.label == "ORG":
-            answer = entity.text
-            answer_list.add(answer)
-print(answer_list)
+        for passage in passage_with_label:
+            for entity in passage.ents:
+                print(entity.text + ' - ' + entity.label_ + ' - ' + str(spacy.explain(entity.label_)))
+                if entity.label_ == "PERSON" or entity.label == "ORG":
+                    answer = entity.text
+                    answer_list.add(answer)
+        return answer_list
 
 
-print(len(question))
-
+# print(len(question))
 
 
 
