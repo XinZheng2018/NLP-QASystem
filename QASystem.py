@@ -52,7 +52,7 @@ new_added_stop_words = ['DATE','SECTION','P','LENGTH','HEADLINE','BYLINE','TEXT'
 for ele in new_added_stop_words:
     stop_words.add(ele)
 
-filename = './training/topdocs/top_docs.0'
+filename = './training/topdocs/top_docs.3'
 #test_filename =
 def chunks(list, n):
     final_list =[]
@@ -144,7 +144,17 @@ def compute_similarity_find_max(bow,question_vectors,N):
     #res = sorted(copy_sim_list, key=lambda x: x, reverse=True)[:N]
     #same value ?"????
     #top_n_list = [bow[sim_list.index(x)]for x in res]
+    print("the top n indicies is ")
+    x= np.sort(sim_list)[-N:]
+    #x.reverse()
+    # print(x)
     top_n_indices = np.argsort(sim_list)[-N:]
+    # #top_n_indices.reverse()
+    # print(top_n_indices)
+    result = top_n_indices.tolist()
+    print(result)
+    result.reverse
+    print(result)
     return top_n_indices
 
 question = preprocessing_question(path)
@@ -152,16 +162,16 @@ candidate_passage, voc_list = document_sep(filename)
 bow,question_vectors = vectorize(candidate_passage,voc_list,question)
 top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
 
-print(bow)
-print(top_n_indices)
+# print(bow)
+# print(top_n_indices)
 
-print(question)
+#print(question)
 
 # add pos tag for questions
 question_with_tag = {}
 for ques_number in question:
     question_with_tag[ques_number] = nltk.pos_tag(question[ques_number])
-print(question_with_tag)
+#print(question_with_tag)
 
 # dicide answer types based on different questions
 answer_key = {}
@@ -278,7 +288,7 @@ for i in top_n_indices:
 # print(answer_list)
 
 
-print(len(question))
+#print(len(question))
 
 
 
