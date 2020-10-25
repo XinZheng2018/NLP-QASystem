@@ -52,8 +52,8 @@ data structre:  a list of document for each qid , so it will be 50*20 dimension 
 
 """
 new_added_stop_words = ['DATE','SECTION','P','LENGTH','HEADLINE','BYLINE','TEXT','DNO','TYPE','SUBJECT','DOC','DOCID','COUNTRY','EDITION','NAME','PUBDATE',
-               'DAY','MONTH','PG','COL','PUBYEAR','REGION','FEATURE','STATE','WORD','CT','DATELINE','COPYRIGHT','LIMLEN','LANGUAGE','FILEID','FIRST','SECOND',
-                        'HEAD','BYLINE','HL']
+               'DAY','MONTH','PG','COL','PUBYEAR','REGION','FEATURE','STATE','WORD','CT','DATELINE','COPYRGHT','LIMLEN','LANGUAGE','FILEID','FIRST','SECOND',
+                        'HEAD','BYLINE','HL','DOCNO']
 for ele in new_added_stop_words:
     stop_words.add(ele)
 
@@ -79,6 +79,20 @@ def document_sep(filename,n=20):
     with open(filename, 'r', encoding='utf-8-sig') as f:
         #large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+,?\d+|\s\w+|\w+\s')
         large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+\smillion|\d+,?\d+|\w+')
+        start_tag = ("<DOCNO>", "<DOCID>", "<FILEID>", "<FIRST>", "<SECOND>", "<HEAD>",
+                     "<NOTE>", "<BYLINE>", "<DATELINE>", "<DATE>", "<SECTION>",
+                     "<LENGTH>", "<HEADLINE>", "<ACCESS>", "<CAPTION>", "<DESCRIPT>",
+                     "<LEADPARA>", "<MEMO>", "<COUNTRY>", "<CITY>", "<EDITION>", "<CODE>",
+                     "<NAME>", "<PUBDATE>", "<DAY>", "<MONTH>", "<PG.COL>", "<PUBYEAR>",
+                     "<REGION>", "<FEATURE>", "<STATE>", "<WORD.CT>", "<COPYRGHT>",
+                     "<LIMLEN>", "<LANGUAGE>", "<EDITION>", "<DNO>", "<TYPE>", "<SUBJECT>", "<HL>")
+        end_tag = ("</DOCNO>", "</DOCID>", "</FILEID>", "</FIRST>", "</SECOND>", "</HEAD>",
+                   "</NOTE>", "</BYLINE>", "</DATELINE>", "</DATE>", "</SECTION>",
+                   "</LENGTH>", "</HEADLINE>", "</ACCESS>", "</CAPTION>", "</DESCRIPT>",
+                   "</LEADPARA>", "</MEMO>", "</COUNTRY>", "</CITY>", "</EDITION>", "</CODE>",
+                   "</NAME>", "</PUBDATE>", "</DAY>", "</MONTH>", "</PG.COL>", "</PUBYEAR>",
+                   "</REGION>", "</FEATURE>", "</STATE>", "</WORD.CT>", "</COPYRGHT>",
+                   "</LIMLEN>", "</LANGUAGE>", "</EDITION>", "</DNO>", "</TYPE>", "</SUBJECT>", "</HL>")
         try:
             current_line = next(f)
             while True:
@@ -92,13 +106,27 @@ def document_sep(filename,n=20):
                     #     doc = []
                     #     rank = numbers[1]
                     #skip <doc>
+                    # next(f)
                     next(f)
-                    next(f)
+                    while True:
+
+
                     #current_line = next(f)
                     #current_docno = current_line.split()[1]
                     #dict_document_tokenblocks[current_docno] = []
-                    current_line = next(f)
-
+                        current_line = next(f)
+                        # if current_line.startswith("<DOC>"):
+                        #     current_line = next(f)
+                        if current_line.startswith(start_tag):
+                            if any(s in current_line for s in end_tag):
+                                continue
+                            else:
+                                while True:
+                                    current_line = next(f)
+                                    if any(s in current_line for s in end_tag):
+                                        break
+                        else:
+                            break
 
                     while "Rank" not in current_line:
                         current_tokens = large_scale_tokenizer.tokenize(current_line)
@@ -179,16 +207,15 @@ def question_extraction(question, question_with_tag):
         quest = question_with_tag[num]
         for i in range(0,len(quest)):
                 if re.search('Where',quest[i][0], flags=re.IGNORECASE):
-                    #answer_key= ["ORGANIZATION", "COUNTRIES"]
-                    answer_key = ["LOCATION"]
+                    answer_key = ["ORGANIZATION", "GPE"]
                     np= False
                     break
                 elif re.search('When',quest[i][0], flags=re.IGNORECASE):
-                    answer_key = ["DATE", "TIME"]
+                    answer_key = ["DATE"]
                     np= False
                     break
                 elif re.search('Who',quest[i][0], flags=re.IGNORECASE):
-                    answer_key= ["PERSON","ORGANIZATION"]
+                    answer_key= ["PERSON"]
                     np = False
                     break
                 elif re.search('What',quest[i][0], flags=re.IGNORECASE):
@@ -196,14 +223,14 @@ def question_extraction(question, question_with_tag):
                     if quest[i+1][1] == "NN" or quest[i+1][1] == "NNS" or  quest[i+1][1] == "VB" or quest[i+1][1] == "VBD" or \
                             quest[i+1][1] == "VBZ" or quest[i+1][1] == "VBN" or quest[i+1][1] == "JJ" or \
                             quest[i+1][1] == "JJR" or quest[i+1][1] == "DT":
-                        answer_key = ["NNP", "NN", "NNS"]
+                        answer_key = ["NNP","NN"]
                         if quest[i+1][0] == "continent" or quest[i+1][0] == "nationality" or quest[i+1][0] == "city" or quest[i+1][0] == "province":
                             np = False
-                            answer_key = ["ORGANIZATION", "COUNTRIES"]
+                            answer_key = ["ORGANIZATION", "GPE"]
                             break
                         elif quest[i+1][0] == "population":
                             answer_key = ["CD"]
-                            np = False
+                            np = True
                             break
                         elif quest[i+1][0] == "year":
                             np = False
@@ -221,17 +248,17 @@ def question_extraction(question, question_with_tag):
                 elif quest[0][1] == "IN":
                     np = True
                     if quest[1][1] == "JJ":
-                        answer_key = ["NNP", "NN", "NNS"] #TODO NP
+                        answer_key = ["NNP", 'NN'] #TODO NP
                         break
                     answer_key = ["VB", "VBZ", "VBD", "VBN"]
                     break
                 elif quest[0][1] == "NN" or quest[0][1] == "NNP":
                     if quest[1][0] == "city":
                         np = False
-                        answer_key = ["ORG", "COUNTRIES"]
+                        answer_key = ["GPE"]
                     break
                     np = True
-                    answer_key = ["NNP", "NN", "NNS"]#TODO NP
+                    answer_key = ["NNP", 'NN']#TODO NP
                     break
                 elif quest[0][0] == "How":
                     if quest[1][0] == "many":
@@ -239,11 +266,11 @@ def question_extraction(question, question_with_tag):
                         answer_key = ["CD"]
                         break
                     np = True
-                    answer_key = ["NNP", "NN", "NNS"] #TODO NP
+                    answer_key = ["NNP", 'NN'] #TODO NP
                     break
                 elif quest[0][1] == "MD":
                     np = True
-                    answer_key = ["NNP", "NN", "NNS"] #TODO NP
+                    answer_key = ["NNP", 'NN'] #TODO NP
                     break
                 else:
                     np = True
@@ -306,16 +333,55 @@ def answer_extract(top_n_passages, single_question):
 
             passage_with_tag = nltk.pos_tag(ele)
             tracker = 0
-            for token in passage_with_tag:
-                #todo: if NP : then directly go to find NP pattern
-                if token[1] in tag_looing_for:
-                    # todo: check assumption here only one word ?is np really bad?
-                    #todo after testing performance change to token[0]
-                    answer_list.append(token)
-                    list_answer_type.append(1.0)
-                    list_of_locality.append(abs(loc_keyword - tracker))
-                    find_tag = True
-                tracker += 1
+            if tag_looing_for[0] == "CD":
+                for token in passage_with_tag:
+                    if token[1] in tag_looing_for:
+                        # todo: check assumption here only one word ?is np really bad?
+                        # todo after testing performance change to token[0]
+                        answer_list.append(token[0])
+                        list_answer_type.append(1.0)
+                        list_of_locality.append(abs(loc_keyword - tracker))
+                        find_tag = True
+                    tracker += 1
+
+            else:
+                for token in passage_with_tag:
+
+                    np_parser_list = []
+                    t_list = []
+                    # pattern_list = ['NP: {<NNP|NN.*>*}', 'NP: {<DT>?<JJ|PR.*>*<NNP>+}', 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}']
+                    # pattern = 'NP: {<DT>?<JJ|PR.*>*<NNP>+}'
+                    pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NNP>+}']
+                    # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
+                    # pattern = 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
+                    for pattern in pattern_list:
+                        np_parser_list.append(nltk.RegexpParser(pattern))
+                    for np_parser in np_parser_list:
+                        t_list.append(np_parser.parse(nltk.pos_tag(ele)))
+
+                    for t in t_list:
+                        for child in t:
+                            if type(child) == nltk.tree.Tree:
+                                # todo simplify
+                                x = ' '.join(x[0] for x in child.leaves())
+                                if x not in answer_list:
+                                    answer_list.append(x)
+                                    num_token = len(child.leaves())
+                                    list_answer_type.append(0.0)
+                                    loc_answer = (tracker + tracker + num_token) / 2
+                                    list_of_locality.append(abs(loc_answer - loc_answer))
+                                    tracker += num_token
+                            else:
+                                tracker += 1
+                    #todo: if NP : then directly go to find NP pattern
+                    # if token[1] in tag_looing_for:
+                    #     # todo: check assumption here only one word ?is np really bad?
+                    #     #todo after testing performance change to token[0]
+                    #     answer_list.append(token)
+                    #     list_answer_type.append(1.0)
+                    #     list_of_locality.append(abs(loc_keyword - tracker))
+                    #     find_tag = True
+                    # tracker += 1
         else:
             #find ne tag!
             token_pos_list = nltk.pos_tag(ele)
@@ -326,38 +392,39 @@ def answer_extract(top_n_passages, single_question):
                 if type(child) == nltk.tree.Tree and child.label() in tag_looing_for:
 
                     ans = ' '.join(x[0] for x in child.leaves())
-                    answer_list.append(ans)
-                    num_token = len(child.leaves())
-                    loc_answer = (tracker + tracker + num_token) / 2
-                    list_answer_type.append(1.0)
-                    list_of_locality.append(abs(loc_keyword-loc_answer))
-                    tracker += num_token
-                    find_tag=True
+                    if ans not in answer_list:
+                        answer_list.append(ans)
+                        num_token = len(child.leaves())
+                        loc_answer = (tracker + tracker + num_token) / 2
+                        list_answer_type.append(1.0)
+                        list_of_locality.append(abs(loc_keyword-loc_answer))
+                        tracker += num_token
+                        find_tag=True
                 else:
                     tracker +=1
         #BACK UP PLAN NP
-        if find_tag==False:
-            #todo what's the pattern we are looking for?
-            pattern ='NP: {<DT>?<JJ|PR.*>*<NN|NNS>}'
-            #pattern = 'NP: {<NNP.*>*}'
-            # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
-            # pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
-            np_parser = nltk.RegexpParser(pattern)
-
-            t = np_parser.parse(nltk.pos_tag(ele))
-            tracker = 0
-            for child in t:
-                if type(child) == nltk.tree.Tree:
-                    #todo simplify
-                    x = ' '.join(x[0] for x in child.leaves())
-                    answer_list.append(x)
-                    num_token = len(child.leaves())
-                    list_answer_type.append(0.0)
-                    loc_answer = (tracker+tracker+num_token)/2
-                    list_of_locality.append(abs(loc_answer-loc_answer))
-                    tracker+= num_token
-                else:
-                    tracker+=1
+        # if find_tag==False:
+        #     #todo what's the pattern we are looking for?
+        #     pattern ='NP: {<DT>?<JJ|PR.*>*<NN|NNS>}'
+        #     #pattern = 'NP: {<NNP.*>*}'
+        #     # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
+        #     # pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
+        #     np_parser = nltk.RegexpParser(pattern)
+        #
+        #     t = np_parser.parse(nltk.pos_tag(ele))
+        #     tracker = 0
+        #     for child in t:
+        #         if type(child) == nltk.tree.Tree:
+        #             #todo simplify
+        #             x = ' '.join(x[0] for x in child.leaves())
+        #             answer_list.append(x)
+        #             num_token = len(child.leaves())
+        #             list_answer_type.append(0.0)
+        #             loc_answer = (tracker+tracker+num_token)/2
+        #             list_of_locality.append(abs(loc_answer-loc_answer))
+        #             tracker+= num_token
+        #         else:
+        #             tracker+=1
             # print(passage)
             # ne_tree = nltk.ne_chunk(passage)
             # for child in ne_tree:
@@ -374,6 +441,8 @@ def answer_extract(top_n_passages, single_question):
             #     if type(child) == nltk.tree.Tree:
             #         x = ' '.join(x[0] for x in child.leaves())
             #         answer_list.add(x)
+    # answer = []
+    # [answer.append(x) for x in answer_list if x not in answer]
     return answer_list,list_answer_type,list_of_locality
 import numpy as np
 def ranking(list_answer_type, list_of_locality,N=10):
@@ -406,30 +475,57 @@ def ranking(list_answer_type, list_of_locality,N=10):
     #                     answer_list.add(answer)
     #     return answer_list
     #
+def write_file(answer):
+    f = open("prediction_file.txt", "w")
+    for elem in answer:
+        f.write("qid " + str(elem))
+        f.write("\n")
+        for ans in answer[elem]:
+            f.write(ans)
+            f.write("\n")
+    f.close()
+
 if __name__ == "__main__":
     #todo 8 problem
-    n = 8
-    filename = './training/topdocs/top_docs.'+str(n)
+
     question = preprocessing_question(path)
-    candidate_passage, voc_list = document_sep(filename,20)
+    # n_list = list(question.keys())
+    #     # n_list.remove(8)
+    #     # n_list.remove(14)
+    n_list = [17]
+    answer = {}
+    for n in n_list:
+        print(n)
+        filename = './training/topdocs/top_docs.' + str(n)
+        candidate_passage, voc_list = document_sep(filename,40)
+        bow,question_vectors = vectorize(candidate_passage,voc_list,question, 10)
 
-    bow,question_vectors = vectorize(candidate_passage,voc_list,question, 10)
+        top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
+        top_n_passages = get_top_n_passages(candidate_passage,top_n_indices)
 
-    top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
-    top_n_passages = get_top_n_passages(candidate_passage,top_n_indices)
-    for ele in top_n_passages:
-        print(ele)
-    question_with_tag = get_question_with_tag(question)
-    #todo check pointer stuff
-    full_question_info = question_extraction(question,question_with_tag)
+        f = open("candidatepassage.txt", "w")
+        for elem in top_n_passages:
+            for ele in elem:
+                f.write(ele)
+                f.write("\t")
+            f.write("\n")
+        f.close()
 
-    anwer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages,full_question_info[n])
-    # for ele in anwer_list_0:
-    #     print(ele)
-    ranking_top_n_indices = ranking(list_answer_type_0,list_locality_0)
-    final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
-    for ans in final_answer:
-        print(ans)
+        question_with_tag = get_question_with_tag(question)
+        #todo check pointer stuff
+        full_question_info = question_extraction(question,question_with_tag)
+
+        anwer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages,full_question_info[n])
+        print("answer_list is: ")
+        for ele in anwer_list_0:
+            print(ele)
+        ranking_top_n_indices = ranking(list_answer_type_0,list_locality_0)
+        final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
+        print("final answer is: ")
+        for ans in final_answer:
+            print(ans)
+        answer[n] = final_answer
+    write_file(answer)
 
 
 
