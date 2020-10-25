@@ -2,7 +2,7 @@ import nltk
 import spacy
 import re
 
-
+#new location  features
 path = './training/qadata/questions.txt'
 stop_words = set(nltk.corpus.stopwords.words('english'))
 
