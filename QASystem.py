@@ -57,11 +57,11 @@ filename = './training/topdocs/top_docs.29'
 #test_filename =
 def chunks(list, n):
     final_list =[]
-    #print("start chunks")
+
     for i in range(0, len(list), n):
         temp_list = list[i:i+n]
         final_list.append(temp_list)
-        #print("in the chunk")
+
     return final_list
 
 def document_sep(filename,n=20):
@@ -80,8 +80,8 @@ def document_sep(filename,n=20):
 
                 #print(current_line)
                 if "Rank" in current_line:
-                    print("line contains rank: ")
-                    print(current_line)
+                    # print("line contains rank: ")
+                    # print(current_line)
                     # numbers = [int(word) for word in current_line.split() if word.isdigit()]
                     # if rank != numbers[1]:
                     #     doc = []
@@ -107,22 +107,24 @@ def document_sep(filename,n=20):
                     # candidate_passage = chunks(doc,n)
                     # dict_document_tokenblocks[current_docno]=candidate_passage
         except StopIteration:
-            print('EOF!')
+            # print('EOF!')
             candidate_passage = chunks(doc, n)
             voc_list = sorted(list(bow))
             #dict_document_tokenblocks[current_docno] = candidate_passage
             return (candidate_passage,voc_list)
 
 
-#result = document_sep(filename)
-#print(result)
-def vectorize(candidate_passages,voc_list,question,question_number):
+def vectorize(candidate_passages,voc_list,question, question_num):
+
     bow = []
     for p in candidate_passages:
         temp = [1 if x in p else 0 for x in voc_list]
         #index_list = [if x in p for x in voc_list]
         bow.append(temp)
-    question_vectors = [1 if x in question[question_number] else 0 for x in voc_list]
+
+
+    question_vectors = [1 if x in question[question_num] else 0 for x in voc_list]
+
         # transformer = Binarizer().fit_transform(p,voc_list)
         # print(transformer)
     return (bow,question_vectors)
@@ -138,7 +140,7 @@ def compute_similarity_find_max(bow,question_vectors,N):
     for vectors in bow:
         temp_sim = np.dot(vectors,question_vectors)
         sim_list.append(temp_sim)
-    print(sim_list)
+    # print(sim_list)
 
         # if temp_sim > max_similariy:
         #     max_similariy=temp_sim
@@ -156,7 +158,9 @@ def compute_similarity_find_max(bow,question_vectors,N):
 
 question = preprocessing_question(path)
 candidate_passage, voc_list = document_sep(filename)
-bow,question_vectors = vectorize(candidate_passage,voc_list,question,29)
+
+bow,question_vectors = vectorize(candidate_passage,voc_list,question, 29)
+
 top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
 print(question[29])
 for num in top_n_indices:
@@ -166,105 +170,101 @@ for num in top_n_indices:
     print(candidate_passage[num])
 
 
-# use spacy to assign labels to each word in candidate passage
-#sp = spacy.load('/opt/anaconda3/lib/python3.7/site-packages/en_core_web_sm')
-
-
 # for index in top_n_indices:
-#     if "kiss" in candidate_passage[index]:
-#         print("kiss")
+
 #     print(candidate_passage[index])
 
 
-add pos tag for questions
+#add pos tag for questions
 question_with_tag = {}
 for ques_number in question:
     question_with_tag[ques_number] = nltk.pos_tag(question[ques_number])
-print(question_with_tag)
+# print(question_with_tag)
 
 # dicide answer types based on different questions
 def question_extraction(question_with_tag):
     answer_key = {}
-    nl = False
-    spa = False
+    nl = {}
     for num in question_with_tag:
         quest = question_with_tag[num]
         for i in range(0,len(quest)):
                 if re.search('Where',quest[i][0], flags=re.IGNORECASE):
                     answer_key[num] = ["ORG", "COUNTRIES"]
-                    spa = True
+                    nl[num] = False
                     break
                 elif re.search('When',quest[i][0], flags=re.IGNORECASE):
                     answer_key[num] = ["DATE", "TIME"]
-                    spa = True
+                    nl[num] = False
                     break
                 elif re.search('Who',quest[i][0], flags=re.IGNORECASE):
                     answer_key[num] = ["PERSON", "ORG"]
-                    spa = True
+                    nl[num] = False
                     break
                 elif re.search('What',quest[i][0], flags=re.IGNORECASE):
-                    nl = True
+                    nl[num] = True
                     if quest[i+1][1] == "NN" or quest[i+1][1] == "NNS" or  quest[i+1][1] == "VB" or quest[i+1][1] == "VBD" or \
                             quest[i+1][1] == "VBZ" or quest[i+1][1] == "VBN" or quest[i+1][1] == "JJ" or \
                             quest[i+1][1] == "JJR" or quest[i+1][1] == "DT":
                         answer_key[num] = ["NNP", "NN", "NNS"]
                         if quest[i+1][0] == "continent" or quest[i+1][0] == "nationality" or quest[i+1][0] == "city" or quest[i+1][0] == "province":
-                            nl = False
-                            spa = True
+                            nl[num] = False
                             answer_key[num] = ["ORG", "COUNTRIES"]
                             break
                         elif quest[i+1][0] == "population":
                             answer_key[num] = ["CD"]
+                            nl[num] = False
                             break
                         elif quest[i+1][0] == "year":
-                            nl = False
-                            spa = True
-                            answer_key[num] = ["DATE", "TIME"]
+                            nl[num] = False
+                            answer_key[num] = ["DATE"]
                             break
                         elif quest[i+1][0] == "zip":
                             answer_key[num] = ["CD"]
+                            nl[num] = True
                             break
                         break
                     else:
                         answer_key[num] = ["UNDEFINED"]
+                        nl[num] = True
                         break
                 elif quest[0][1] == "IN":
-                    nl = True
+                    nl[num] = True
                     answer_key[num] = ["VB", "VBZ", "VBD", "VBN"]
                     if quest[1][1] == "JJ":
                         answer_key[num] = ["NNP", "NN", "NNS"]
                     break
                 elif quest[0][1] == "NN" or quest[0][1] == "NNP":
-                    nl = True
+                    nl[num] = True
                     answer_key[num] = ["NNP", "NN", "NNS"]
                     if quest[1][0] == "city":
-                        nl = False
-                        spa = True
+                        nl[num] = False
                         answer_key[num] = ["ORG", "COUNTRIES"]
                     break
                 elif quest[0][0] == "How":
-                    nl = True
+                    nl[num] = True
                     answer_key[num] = ["NNP", "NN", "NNS"]
                     if quest[1][0] == "many":
-                        nl = True
+                        nl[num] = True
                         answer_key[num] = ["CD"]
                         break
                 elif quest[0][1] == "MD":
-                    nl = True
+                    nl[num] = True
                     answer_key[num] = ["NNP", "NN", "NNS"]
                     break
                 else:
-                    nl = True
+                    nl[num] = True
                     answer_key[num] = ["UNDEFINED"]
-    # print(answer_key)
-    # print(question_with_tag)
-    # print(candidate_passage)
+    return answer_key, nl
 
 
 import spacy
 passage_with_label = []
-def answer_extract(nl):
-# add tags using nltk
+
+def answer_extract(nl, top_n_indices, candidate_passage, answer_type):
+    answer_list = set([])
+
+    # add tags using nltk
+
     if nl:
         for i in top_n_indices:
             passage = nltk.pos_tag(candidate_passage[i])
@@ -273,36 +273,44 @@ def answer_extract(nl):
             for child in ne_tree:
                 if type(child) == nltk.tree.Tree:
                     ''.join(x[0] for x in child.leaves())
-            # pattern = 'NP: {<NNP.*>*}'
+            pattern = 'NP: {<NNP.*>*}'
             # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
-            pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
+            # pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
             np_parser = nltk.RegexpParser(pattern)
             np_parser.parse(passage)
             t = np_parser.parse(passage)
-            # print(t)
-        return None
+            for child in t:
+                if type(child) == nltk.tree.Tree:
+                    x = ' '.join(x[0] for x in child.leaves())
+                    answer_list.add(x)
+        return answer_list
 
     # add tags using spacy
     else:
         sp = spacy.load('en_core_web_sm')
+
+        answer_key = answer_type[29]
 
         for i in top_n_indices:
             passage_str =' '.join([str(elem) for elem in candidate_passage[i]])
             passage = sp(passage_str)
             passage_with_label.append(passage)
 
-        answer_list = set([])
-
         for passage in passage_with_label:
             for entity in passage.ents:
                 print(entity.text + ' - ' + entity.label_ + ' - ' + str(spacy.explain(entity.label_)))
-                if entity.label_ == "PERSON" or entity.label == "ORG":
-                    answer = entity.text
-                    answer_list.add(answer)
+                for te in answer_key:
+                    if entity.label_ == te:
+                        answer = entity.text
+                        answer_list.add(answer)
         return answer_list
 
 
-# print(len(question))
-# def ranking_answer()
+answer_type, nl  = question_extraction(question_with_tag)
+# print(answer_type)
+t = answer_extract(nl[29], top_n_indices, candidate_passage, answer_type)
+print(t)
+
+
 
 
