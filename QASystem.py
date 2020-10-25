@@ -53,15 +53,15 @@ new_added_stop_words = ['DATE','SECTION','P','LENGTH','HEADLINE','BYLINE','TEXT'
 for ele in new_added_stop_words:
     stop_words.add(ele)
 
-filename = './training/topdocs/top_docs.3'
+filename = './training/topdocs/top_docs.29'
 #test_filename =
 def chunks(list, n):
     final_list =[]
-    print("start chunks")
+    #print("start chunks")
     for i in range(0, len(list), n):
         temp_list = list[i:i+n]
         final_list.append(temp_list)
-        print("in the chunk")
+        #print("in the chunk")
     return final_list
 
 def document_sep(filename,n=20):
@@ -116,15 +116,17 @@ def document_sep(filename,n=20):
 
 #result = document_sep(filename)
 #print(result)
-def vectorize(candidate_passages,voc_list,question):
+def vectorize(candidate_passages,voc_list,question,question_number):
     bow = []
     for p in candidate_passages:
         temp = [1 if x in p else 0 for x in voc_list]
+        #index_list = [if x in p for x in voc_list]
         bow.append(temp)
-    question_vectors = [1 if x in question[0] else 0 for x in voc_list]
+    question_vectors = [1 if x in question[question_number] else 0 for x in voc_list]
         # transformer = Binarizer().fit_transform(p,voc_list)
         # print(transformer)
     return (bow,question_vectors)
+
 import math
 import numpy as np
 import copy
@@ -154,21 +156,27 @@ def compute_similarity_find_max(bow,question_vectors,N):
 
 question = preprocessing_question(path)
 candidate_passage, voc_list = document_sep(filename)
-bow,question_vectors = vectorize(candidate_passage,voc_list,question)
+bow,question_vectors = vectorize(candidate_passage,voc_list,question,29)
 top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
-
-
+print(question[29])
+for num in top_n_indices:
+    for ele in candidate_passage[num]:
+        if ele in question[29]:
+            print(ele)
+    print(candidate_passage[num])
 
 
 # use spacy to assign labels to each word in candidate passage
 #sp = spacy.load('/opt/anaconda3/lib/python3.7/site-packages/en_core_web_sm')
 
 
-for index in top_n_indices:
-    print(candidate_passage[index])
+# for index in top_n_indices:
+#     if "kiss" in candidate_passage[index]:
+#         print("kiss")
+#     print(candidate_passage[index])
 
 
-# add pos tag for questions
+add pos tag for questions
 question_with_tag = {}
 for ques_number in question:
     question_with_tag[ques_number] = nltk.pos_tag(question[ques_number])
@@ -253,11 +261,11 @@ def question_extraction(question_with_tag):
     # print(candidate_passage)
 
 
- import spacy
+import spacy
 passage_with_label = []
-def answer_extract(nltk):
+def answer_extract(nl):
 # add tags using nltk
-    if nltk:
+    if nl:
         for i in top_n_indices:
             passage = nltk.pos_tag(candidate_passage[i])
             # print(passage)
@@ -295,6 +303,6 @@ def answer_extract(nltk):
 
 
 # print(len(question))
-
+# def ranking_answer()
 
 
