@@ -67,7 +67,8 @@ def chunks(list, n):
         final_list.append(temp_list)
 
     return final_list
-
+#todo remove all book information
+#todo think about different features to find candidate passages
 def document_sep(filename,n=20):
     rank = 0
     doc = []
@@ -106,8 +107,6 @@ def document_sep(filename,n=20):
                             bow.add(ele)
                         doc.extend(filter_token)
                         current_line=next(f)
-
-
                     # candidate_passage = chunks(doc,n)
                     # dict_document_tokenblocks[current_docno]=candidate_passage
         except StopIteration:
@@ -171,6 +170,7 @@ def get_question_with_tag(question):
     # print(question_with_tag)
     return question_with_tag
 
+#todo simplity code currently thinking: dictionary
 # dicide answer types based on different questions
 def question_extraction(question, question_with_tag):
     # answer_key = {}
@@ -215,13 +215,13 @@ def question_extraction(question, question_with_tag):
                             break
                         break
                     else:
-                        answer_key = ["UNDEFINED"]
+                        answer_key = ["UNDEFINED"] #TODO NP
                         np = True
                         break
                 elif quest[0][1] == "IN":
                     np = True
                     if quest[1][1] == "JJ":
-                        answer_key = ["NNP", "NN", "NNS"]
+                        answer_key = ["NNP", "NN", "NNS"] #TODO NP
                         break
                     answer_key = ["VB", "VBZ", "VBD", "VBN"]
                     break
@@ -231,7 +231,7 @@ def question_extraction(question, question_with_tag):
                         answer_key = ["ORG", "COUNTRIES"]
                     break
                     np = True
-                    answer_key = ["NNP", "NN", "NNS"]
+                    answer_key = ["NNP", "NN", "NNS"]#TODO NP
                     break
                 elif quest[0][0] == "How":
                     if quest[1][0] == "many":
@@ -239,15 +239,15 @@ def question_extraction(question, question_with_tag):
                         answer_key = ["CD"]
                         break
                     np = True
-                    answer_key = ["NNP", "NN", "NNS"]
+                    answer_key = ["NNP", "NN", "NNS"] #TODO NP
                     break
                 elif quest[0][1] == "MD":
                     np = True
-                    answer_key = ["NNP", "NN", "NNS"]
+                    answer_key = ["NNP", "NN", "NNS"] #TODO NP
                     break
                 else:
                     np = True
-                    answer_key = ["UNDEFINED"]
+                    answer_key = ["UNDEFINED"] #TODO NP
         #print(answer_key[num])
         question[num].append(answer_key)
         question[num].append(np)
@@ -278,10 +278,7 @@ def answer_extract(top_n_passages, single_question):
     list_answer_type =[] #0 means not match answer type of question, 1 means matching answer type of question 1
     list_of_locality = [] #the relevant distance between key words in the candidate passage and the answer of the key words
     np = single_question[2]
-
-
     tag_looing_for = single_question[1]
-
     keyword_list = single_question[0]
 
     for ele in top_n_passages:
@@ -290,12 +287,14 @@ def answer_extract(top_n_passages, single_question):
         i = 0
         list_index = []
         find_tag = False
+        #find the location of question key word
         for word in ele:
             if word in keyword_list:
                 # print("the word is " +word)
                 # print(keyword_list)
                 list_index.append(i)
             i+=1
+
         #todo what if no key word?
         if len(list_index) == 0:
             loc_keyword = 0
@@ -308,10 +307,12 @@ def answer_extract(top_n_passages, single_question):
             passage_with_tag = nltk.pos_tag(ele)
             tracker = 0
             for token in passage_with_tag:
+                #todo: if NP : then directly go to find NP pattern
                 if token[1] in tag_looing_for:
                     # todo: check assumption here only one word ?is np really bad?
+                    #todo after testing performance change to token[0]
                     answer_list.append(token)
-                    list_answer_type.append(1)
+                    list_answer_type.append(1.0)
                     list_of_locality.append(abs(loc_keyword - tracker))
                     find_tag = True
                 tracker += 1
@@ -328,7 +329,7 @@ def answer_extract(top_n_passages, single_question):
                     answer_list.append(ans)
                     num_token = len(child.leaves())
                     loc_answer = (tracker + tracker + num_token) / 2
-                    list_answer_type.append(1)
+                    list_answer_type.append(1.0)
                     list_of_locality.append(abs(loc_keyword-loc_answer))
                     tracker += num_token
                     find_tag=True
@@ -337,7 +338,8 @@ def answer_extract(top_n_passages, single_question):
         #BACK UP PLAN NP
         if find_tag==False:
             #todo what's the pattern we are looking for?
-            pattern = 'NP: {<NNP.*>*}'
+            pattern ='NP: {<DT>?<JJ|PR.*>*<NN|NNS>}'
+            #pattern = 'NP: {<NNP.*>*}'
             # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
             # pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
             np_parser = nltk.RegexpParser(pattern)
@@ -350,7 +352,7 @@ def answer_extract(top_n_passages, single_question):
                     x = ' '.join(x[0] for x in child.leaves())
                     answer_list.append(x)
                     num_token = len(child.leaves())
-                    list_answer_type.append(0)
+                    list_answer_type.append(0.0)
                     loc_answer = (tracker+tracker+num_token)/2
                     list_of_locality.append(abs(loc_answer-loc_answer))
                     tracker+= num_token
@@ -373,9 +375,18 @@ def answer_extract(top_n_passages, single_question):
             #         x = ' '.join(x[0] for x in child.leaves())
             #         answer_list.add(x)
     return answer_list,list_answer_type,list_of_locality
+import numpy as np
+def ranking(list_answer_type, list_of_locality,N=10):
+    weighted_ans_type = [ele*0.9 for ele in list_answer_type]
+    weighted_locality = [ele*0.1 for ele in list_of_locality]
+    weighted_value = np.add(weighted_ans_type,weighted_locality)
+    top_n_indices = np.argsort(weighted_value.tolist())[-N:]
+    result = top_n_indices.tolist()
+    result.reverse()
+    return result
 
-
-    # add tags using spacy
+#todo :evaluation_results = 0.9*list_answer_type + 0.1* list_of_locality
+# add tags using spacy
     # else:
     #     sp = spacy.load('en_core_web_sm')
     #
@@ -396,26 +407,29 @@ def answer_extract(top_n_passages, single_question):
     #     return answer_list
     #
 if __name__ == "__main__":
-    filename = './training/topdocs/top_docs.11'
+    #todo 8 problem
+    n = 8
+    filename = './training/topdocs/top_docs.'+str(n)
     question = preprocessing_question(path)
-    candidate_passage, voc_list = document_sep(filename,40)
+    candidate_passage, voc_list = document_sep(filename,20)
 
     bow,question_vectors = vectorize(candidate_passage,voc_list,question, 10)
 
     top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
     top_n_passages = get_top_n_passages(candidate_passage,top_n_indices)
+    for ele in top_n_passages:
+        print(ele)
     question_with_tag = get_question_with_tag(question)
     #todo check pointer stuff
     full_question_info = question_extraction(question,question_with_tag)
-    #full_question_info[0][1] = False
-    # print(answer_type)
-    # for ele in top_n_passages:
-    #     print(ele)
-    #print(top_n_passages)
-    anwer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages,full_question_info[11])
-    for ele in anwer_list_0:
-        print(ele)
 
+    anwer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages,full_question_info[n])
+    # for ele in anwer_list_0:
+    #     print(ele)
+    ranking_top_n_indices = ranking(list_answer_type_0,list_locality_0)
+    final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
+    for ans in final_answer:
+        print(ans)
 
 
 
