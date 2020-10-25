@@ -206,6 +206,11 @@ def question_extraction(question, question_with_tag):
                     answer_key = ["ORGANIZATION", "GPE"]
                     np= False
                     break
+                elif re.search('name',quest[i][0],flags=re.IGNORECASE):
+
+                    answer_key = ['NNP_Pattern']
+                    np = True
+                    break
                 elif re.search('When',quest[i][0], flags=re.IGNORECASE):
                     answer_key = ["DATE"]
                     np= False
@@ -224,13 +229,17 @@ def question_extraction(question, question_with_tag):
                         np = False
                         answer_key = ["ORGANIZATION", "GPE"]
                         break
+                    elif quest[i+1][0] == "name":
+                        answer_key = ['NNP_Pattern']
+                        np = True
+                        break
                     elif quest[i+1][0] == "population":
                         answer_key = ["CD"]
                         np = True
                         break
                     elif quest[i+1][0] == "year":
-                        np = False
-                        answer_key = ["DATE"]
+                        np = True
+                        answer_key = ["CD"]
                         break
                     elif quest[i+1][0] == "zip":
                         answer_key = ["CD"]
@@ -281,10 +290,19 @@ def question_extraction(question, question_with_tag):
 
 #import spacy
 
-passage_with_label = []
+#passage_with_label = []
+import math
 #def generate_candidate_passages_each_question(question_with_tag, )
 def find_location (list_index):
     return sum(list_index)/len(list_index)
+
+def find_closest_distance_to_any_keyword(loc_ans, list_index):
+    distance = math.inf
+    for ele in list_index:
+        current_distance = abs(loc_ans-ele)
+        if distance > current_distance:
+            distance = current_distance
+    return distance
 
 def answer_extract(top_n_passages, single_question):
     """
@@ -314,7 +332,7 @@ def answer_extract(top_n_passages, single_question):
         #print(ele)
         for word in ele:
             if word in keyword_list:
-                print("the word is " +word+" and the current index is " + str(i))
+                #print("the word is " +word+" and the current index is " + str(i))
                 # print(keyword_list)
                 list_index.append(i)
 
@@ -325,7 +343,7 @@ def answer_extract(top_n_passages, single_question):
             loc_keyword = 0
         else:
             loc_keyword = find_location(list_index)
-            print("the location of keyword is " + str(loc_keyword))
+            #print("the location of keyword is " + str(loc_keyword))
         #todo, deal with undefined
         #find pos tag
         if np:
@@ -340,11 +358,54 @@ def answer_extract(top_n_passages, single_question):
                         answer_list.append(token[0])
                         list_answer_type.append(1.0)
                         #print answer loc
-                        print("current anewser is "+ str(token[0]) + "current location is " + str(tracker) + "the distance is " + str(abs(loc_keyword - tracker)))
-                        list_of_locality.append(abs(loc_keyword - tracker))
+
+                        loc_answer = tracker
+                        distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
+                        #print("current anewser is " + str(token[0]) + "current location is " + str(tracker) + "the distance is " + str(distance))
+                        list_of_locality.append(distance)
                         find_tag = True
                     tracker += 1
 
+            elif tag_looing_for[0] == "NNP_Pattern":
+
+                np_parser_list = []
+                t_list = []
+                # pattern_list = ['NP: {<NNP|NN.*>*}', 'NP: {<DT>?<JJ|PR.*>*<NNP>+}', 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}']
+                # pattern = 'NP: {<DT>?<JJ|PR.*>*<NNP>+}'
+                pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NNP>*}']
+                for pattern in pattern_list:
+                    np_parser_list.append(nltk.RegexpParser(pattern))
+
+                for np_parser in np_parser_list:
+                    t_list.append(np_parser.parse(nltk.pos_tag(ele)))
+
+                for t in t_list:
+                    tracker = 0
+                    for child in t:
+                        if type(child) == nltk.tree.Tree:
+                            # todo simplify
+                            current_list = []
+                            for x in child.leaves():
+                                if x[0] in keyword_list:
+                                    current_list = []
+                                    break
+                                else:
+                                    current_list.append(x[0])
+
+
+                            if len(current_list)>0:
+                                x = ' '.join(current_list)
+                                answer_list.append(x)
+                                num_token = len(child.leaves())
+                                list_answer_type.append(1.0)
+                                loc_answer = (tracker + tracker + num_token - 1) / 2
+                                # print("current anewser is " + str(x) + "current location is " + str(tracker) + "the distance is " + str(abs(loc_keyword - loc_answer)))
+                                distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
+                                list_of_locality.append(distance)
+                                tracker += num_token
+                                find_tag = True
+                        else:
+                            tracker += 1
 
             else:
                 #for token in passage_with_tag:
@@ -376,8 +437,8 @@ def answer_extract(top_n_passages, single_question):
                             list_answer_type.append(1.0)
                             loc_answer = (tracker + tracker + num_token-1) / 2
                             #print("current anewser is " + str(x) + "current location is " + str(tracker) + "the distance is " + str(abs(loc_keyword - loc_answer)))
-
-                            list_of_locality.append(abs(loc_keyword - loc_answer))
+                            distance =find_closest_distance_to_any_keyword(loc_answer,list_index)
+                            list_of_locality.append(distance)
                             tracker += num_token
                             find_tag = True
                         else:
@@ -408,7 +469,8 @@ def answer_extract(top_n_passages, single_question):
                     loc_answer = (tracker + tracker + num_token-1) / 2
                     list_answer_type.append(1.0)
 
-                    list_of_locality.append(abs(loc_keyword-loc_answer))
+                    distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
+                    list_of_locality.append(distance)
                     #print("current anewser is "+ str(token[0]) + "current location is " + str(tracker) + "the distance is " + str(abs(loc_keyword - loc_answer)))
                     tracker += num_token
                     find_tag=True
@@ -416,7 +478,7 @@ def answer_extract(top_n_passages, single_question):
                     tracker +=1
         #BACK UP PLAN NP
         if find_tag==False:
-            print("enter back up ")
+            #print("enter back up ")
             #todo what's the pattern we are looking for?
             pattern ='NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>}'
             #pattern = 'NP: {<NNP.*>*}'
@@ -434,7 +496,8 @@ def answer_extract(top_n_passages, single_question):
                     num_token = len(child.leaves())
                     list_answer_type.append(0.0)
                     loc_answer = (tracker+tracker+num_token-1)/2
-                    list_of_locality.append(abs(loc_keyword-loc_answer))
+                    distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
+                    list_of_locality.append(distance)
                     tracker+= num_token
                 else:
                     tracker+=1
@@ -467,10 +530,10 @@ if __name__ == "__main__":
     #todo 8 problem
 
     question = preprocessing_question(path)
-    # n_list = list(question.keys())
-    # n_list.remove(8)
-    # n_list.remove(14)
-    n_list = [17]
+    n_list = list(question.keys())
+    n_list.remove(8)
+    n_list.remove(14)
+    #n_list = [93]
     answer = {}
     for n in n_list:
         #print(n)
@@ -481,8 +544,8 @@ if __name__ == "__main__":
 
         top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
         top_n_passages = get_top_n_passages(candidate_passage,top_n_indices)
-        for ele in top_n_passages:
-            print(ele)
+        # for ele in top_n_passages:
+        #     print(ele)
 
         f = open("candidatepassage.txt", "w")
         for elem in top_n_passages:
@@ -510,11 +573,11 @@ if __name__ == "__main__":
         ranking_top_n_indices = ranking(list_answer_type_0,list_locality_0,10)
         final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
         # print()
-        print("final answer is: ")
-        for ans in final_answer:
-            print(ans)
+        # print("final answer is: ")
+        # for ans in final_answer:
+        #     print(ans)
         answer[n] = final_answer
-    #write_file(answer)
+    write_file(answer)
 
 
 
