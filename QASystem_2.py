@@ -77,7 +77,7 @@ def document_sep(filename,n=20):
     bow = set()
 
     #dict_document_tokenblocks ={}
-    with open(filename, 'r', encoding='utf-8-sig') as f:
+    with open(filename, 'r', encoding='latin-1') as f:
         #large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+,?\d+|\s\w+|\w+\s')
         large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+\smillion|\d+,?\d+|\w+')
         start_tag = ("<DOCNO>", "<DOCID>", "<FILEID>", "<FIRST>", "<SECOND>", "<HEAD>",
@@ -189,8 +189,6 @@ def get_question_with_tag(question):
     question_with_tag = {}
     for ques_number in question.keys():
         question_with_tag[ques_number] = nltk.pos_tag(question[ques_number][0])
-    # print("question is :")
-    # print(question_with_tag)
     return question_with_tag
 
 
@@ -212,8 +210,8 @@ def question_extraction(question, question_with_tag):
                     np = True
                     break
                 elif re.search('When',quest[i][0], flags=re.IGNORECASE):
-                    answer_key = ["DATE"]
-                    np= False
+                    answer_key = ["CD"]
+                    np= True
                     break
                 elif re.search('Who',quest[i][0], flags=re.IGNORECASE):
                     answer_key= ["PERSON"]
@@ -287,9 +285,6 @@ def question_extraction(question, question_with_tag):
         #to elimiate nl and answerkey
     return question
 
-
-#import spacy
-
 #passage_with_label = []
 import math
 #def generate_candidate_passages_each_question(question_with_tag, )
@@ -355,6 +350,9 @@ def answer_extract(top_n_passages, single_question):
                     if token[1] in tag_looing_for:
                         # todo: check assumption here only one word ?is np really bad?
                         # todo after testing performance change to token[0]
+                        if token[0] in keyword_list:
+                            continue
+
                         answer_list.append(token[0])
                         list_answer_type.append(1.0)
                         #print answer loc
@@ -365,6 +363,7 @@ def answer_extract(top_n_passages, single_question):
                         list_of_locality.append(distance)
                         find_tag = True
                     tracker += 1
+
 
             elif tag_looing_for[0] == "NNP_Pattern":
 
@@ -464,6 +463,8 @@ def answer_extract(top_n_passages, single_question):
 
                     ans = ' '.join(x[0] for x in child.leaves())
                     # if ans not in answer_list:
+                    if ans in keyword_list:
+                        continue
                     answer_list.append(ans)
                     num_token = len(child.leaves())
                     loc_answer = (tracker + tracker + num_token-1) / 2
@@ -492,6 +493,8 @@ def answer_extract(top_n_passages, single_question):
                 if type(child) == nltk.tree.Tree:
                     #todo simplify
                     x = ' '.join(x[0] for x in child.leaves())
+                    if x in keyword_list:
+                        continue
                     answer_list.append(x)
                     num_token = len(child.leaves())
                     list_answer_type.append(0.0)
@@ -530,13 +533,15 @@ if __name__ == "__main__":
     #todo 8 problem
 
     question = preprocessing_question(path)
-    # n_list = list(question.keys())
-    # n_list.remove(8)
-    # n_list.remove(14)
-    n_list = [74]
+
+    n_list = list(question.keys())
+   #n_list.remove(8)
+    #n_list.remove(14)
+    # n_list = [0]
+
     answer = {}
     for n in n_list:
-        #print(n)
+        print(n)
         filename = './training/topdocs/top_docs.' + str(n)
         #filename = './training/top_docs.' + str(n)
         candidate_passage, voc_list = document_sep(filename,40)
@@ -565,8 +570,8 @@ if __name__ == "__main__":
             # print("when answer is " + anwer_list_0[i])
             # print("the answer type is " + str(list_answer_type_0[i]))
             # print(" the locality value is " + str(list_locality_0[i]))
-
-
+        #
+        #
         # print("answer_list is: ")
         # for ele in anwer_list_0:
         #     print(ele)
