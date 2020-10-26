@@ -530,10 +530,10 @@ if __name__ == "__main__":
     #todo 8 problem
 
     question = preprocessing_question(path)
-    n_list = list(question.keys())
-    n_list.remove(8)
-    n_list.remove(14)
-    #n_list = [93]
+    # n_list = list(question.keys())
+    # n_list.remove(8)
+    # n_list.remove(14)
+    n_list = [74]
     answer = {}
     for n in n_list:
         #print(n)
