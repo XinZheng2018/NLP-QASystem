@@ -39,7 +39,7 @@ def preprocessing_question(filename):
                     filter_sent = [word for word in word_tokens if not word in stop_words]
                     temp.append(filter_sent)
                     question_training[q_num] = temp
-                    question_training[q_num].append(current_line)
+                    # question_training[q_num].append(current_line)
                     next(file)
         except StopIteration:
             return question_training
@@ -218,51 +218,6 @@ def document_sep(filename,question,id,n=20,num_chunks=20):
             # voc_list = sorted(list(bow))
             # #dict_document_tokenblocks[current_docno] = candidate_passage
             # return (candidate_passage,voc_list)
-
-
-# def vectorize(candidate_passages,voc_list,question, question_num):
-#
-#     bow = []
-#     for p in candidate_passages:
-#         temp = [1 if x in p else 0 for x in voc_list]
-#         #index_list = [if x in p for x in voc_list]
-#         bow.append(temp)
-#
-#
-#     question_vectors = [1 if x in question[question_num][0] else 0 for x in voc_list]
-#
-#     return (bow,question_vectors)
-#
-# import math
-# import numpy as np
-# import copy
-# def compute_similarity_find_max(bow,question_vectors,N):
-#
-#     i = 0
-#     sim_list = []
-#     for vectors in bow:
-#         temp_sim = np.dot(vectors,question_vectors)
-#         sim_list.append(temp_sim)
-#
-#     top_n_indices = np.argsort(sim_list)[-N:]
-#     result = top_n_indices.tolist()
-#     result.reverse()
-#     return result
-#
-#
-#
-# def get_top_n_passages(candidate_passage,top_n_indices):
-#     top_n_passages=[]
-#     for num in top_n_indices:
-#         top_n_passages.append(candidate_passage[num])
-#     return top_n_passages
-#
-
-
-# for index in top_n_indices:
-
-#     print(candidate_passage[index])
-
 
 import copy
 #add pos tag for questions
@@ -668,10 +623,7 @@ if __name__ == "__main__":
 
         ranking_top_n_indices = ranking(list_answer_type_0,list_locality_0,10)
         final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
-        # print()
-        # print("final answer is: ")
-        # for ans in final_answer:
-        #     print(ans)
+
         answer[n] = final_answer
     write_file(answer)
 
