@@ -2,12 +2,20 @@ import nltk
 import spacy
 import re
 
+from gensim import corpora
+
 #new location  features
 path = './training/qadata/questions.txt'
 stop_words = set(nltk.corpus.stopwords.words('english'))
-
+kept_words = ['when','what','why','who','where','which','whom','how']
+for ele in kept_words:
+    stop_words.remove(ele)
+kept_words.append("name")
 def preprocessing_question(filename):
     """
+    #TODO SENTENCE TOKENIZE USE WORD2VEC TO FIND VECTORIZE EACH SENTENCE AND FIND THE TOP10 MOST
+    SIMILAR ONE FOR THE CANDIDATE PASSAGE
+
     Preprocessing the question file
     @param filename:
     @type filename:
@@ -31,6 +39,7 @@ def preprocessing_question(filename):
                     filter_sent = [word for word in word_tokens if not word in stop_words]
                     temp.append(filter_sent)
                     question_training[q_num] = temp
+                    # question_training[q_num].append(current_line)
                     next(file)
         except StopIteration:
             return question_training
@@ -70,13 +79,62 @@ def chunks(list, n):
     return final_list
 #todo remove all book information
 #todo think about different features to find candidate passages
-def document_sep(filename,n=20):
+def document_sep(filename,question,id,n=20,num_chunks=20):
     rank = 0
     doc = []
     candidate_passage = []
-    bow = set()
+    # bow = set()
+    # raw = open(filename, 'r', encoding='latin-1').read()
+    # sentences = nltk.sent_tokenize(raw)
+    # tokenizer = nltk.RegexpTokenizer(r'\w+')
+    # filtered_sentences = []
+    # for sent in sentences:
+    #     if sent.startswith("Qid:"):
+    #         continue
+    #     elif sent.endswith("</DOC>"):
+    #         continue
+    #     else:
+    #         temp_list = sent.split()
+    #         for ele in temp_list:
+    #             if ele.startswith("<"):
+    #                 temp_list.remove(ele)
+    #         new_sent = " ".join(temp_list)
+    #         filter_punct_sent = re.sub('[^\w\s]', '', new_sent)
+    #         filtered_sentences.append(tokenizer.tokenize(filter_punct_sent))
+    # frequency = defaultdict(int)
+    # for text in filtered_sentences:
+    #     for token in text:
+    #         frequency[token] += 1
+    # dictionary = corpora.Dictionary(filtered_sentences)
+    # corpus = [dictionary.doc2bow(text)for text in filtered_sentences]
+    # from gensim import models
+    # lsi = models.LsiModel(corpus, id2word=dictionary, num_topics=2)
+    # current_question = question[id][0]
+    # vec_bow = dictionary.doc2bow(current_question)
+    # vec_lsi = lsi[vec_bow]
+    # from gensim import similarities
+    # index = similarities.MatrixSimilarity(lsi[corpus])
+    # index.save('/tmp/deerwester.index')
+    # index = similarities.MatrixSimilarity.load('/tmp/deerwester.index')
+    # sims = index[vec_lsi]
+    # sims = sorted(enumerate(sims), key=lambda item: -item[1])
+    # i = 0
+    # top_n_passages = []
+    # for i, s in enumerate(sims):
+    #     if i<n:
+    #         top_n_passages.append(filtered_sentences[i])
+    #         #print(s, filtered_sentences[i])
+    #     else:
+    #         break
+    #     i+=1
+    # return top_n_passages
 
-    #dict_document_tokenblocks ={}
+
+
+
+
+
+    # dict_document_tokenblocks ={}
     with open(filename, 'r', encoding='latin-1') as f:
         #large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+,?\d+|\s\w+|\w+\s')
         large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+\smillion|\d+,?\d+|\w+')
@@ -121,8 +179,8 @@ def document_sep(filename,n=20):
 
                         current_tokens = large_scale_tokenizer.tokenize(current_line)
                         filter_token = [word for word in current_tokens if not word in stop_words]
-                        for ele in filter_token:
-                            bow.add(ele)
+                        # for ele in filter_token:
+                        #     bow.add(ele)
                         doc.extend(filter_token)
                         #current_line = next(f)
 
@@ -133,81 +191,63 @@ def document_sep(filename,n=20):
                     # dict_document_tokenblocks[current_docno]=candidate_passage
         except StopIteration:
             # print('EOF!')
-            candidate_passage = chunks(doc, n)
-            voc_list = sorted(list(bow))
-            #dict_document_tokenblocks[current_docno] = candidate_passage
-            return (candidate_passage,voc_list)
+            filtered_sentences = chunks(doc, num_chunks)
+            dictionary = corpora.Dictionary(filtered_sentences)
+            corpus = [dictionary.doc2bow(text)for text in filtered_sentences]
+            from gensim import models
+            lsi = models.LsiModel(corpus, id2word=dictionary, num_topics=2)
+            current_question = question[id][0]
+            vec_bow = dictionary.doc2bow(current_question)
+            vec_lsi = lsi[vec_bow]
+            from gensim import similarities
+            index = similarities.MatrixSimilarity(lsi[corpus])
+            index.save('/tmp/deerwester.index')
+            index = similarities.MatrixSimilarity.load('/tmp/deerwester.index')
+            sims = index[vec_lsi]
+            sims = sorted(enumerate(sims), key=lambda item: -item[1])
+            i = 0
+            top_n_passages = []
+            for i, s in enumerate(sims):
+                if i<n:
+                    top_n_passages.append(filtered_sentences[i])
+                    #print(s, filtered_sentences[i])
+                else:
+                    break
+                i+=1
+            return top_n_passages
+            # voc_list = sorted(list(bow))
+            # #dict_document_tokenblocks[current_docno] = candidate_passage
+            # return (candidate_passage,voc_list)
 
-
-def vectorize(candidate_passages,voc_list,question, question_num):
-
-    bow = []
-    for p in candidate_passages:
-        temp = [1 if x in p else 0 for x in voc_list]
-        #index_list = [if x in p for x in voc_list]
-        bow.append(temp)
-
-
-    question_vectors = [1 if x in question[question_num][0] else 0 for x in voc_list]
-
-    return (bow,question_vectors)
-
-import math
-import numpy as np
 import copy
-def compute_similarity_find_max(bow,question_vectors,N):
-
-    i = 0
-    sim_list = []
-    for vectors in bow:
-        temp_sim = np.dot(vectors,question_vectors)
-        sim_list.append(temp_sim)
-
-    top_n_indices = np.argsort(sim_list)[-N:]
-    result = top_n_indices.tolist()
-    result.reverse()
-    return result
-
-
-
-def get_top_n_passages(candidate_passage,top_n_indices):
-    top_n_passages=[]
-    for num in top_n_indices:
-        top_n_passages.append(candidate_passage[num])
-    return top_n_passages
-
-
-
-# for index in top_n_indices:
-
-#     print(candidate_passage[index])
-
-
-
 #add pos tag for questions
 def get_question_with_tag(question):
+    # new_question = copy.deepcopy(question)
     question_with_tag = {}
     for ques_number in question.keys():
         question_with_tag[ques_number] = nltk.pos_tag(question[ques_number][0])
     return question_with_tag
-
 
 #todo simplity code currently thinking: dictionary
 # dicide answer types based on different questions
 def question_extraction(question, question_with_tag):
     # answer_key = {}
     # np = {}
+    answer_key = []
+    np=True
     for num in question_with_tag.keys():
         quest = question_with_tag[num]
         for i in range(0,len(quest)):
                 if re.search('Where',quest[i][0], flags=re.IGNORECASE):
                     answer_key = ["ORGANIZATION", "GPE"]
                     np= False
+                    #question[num][0].remove("Where")
                     break
-                elif re.search('name',quest[i][0],flags=re.IGNORECASE):
+                elif re.search('name',quest[i][0].lower(),flags=re.IGNORECASE):
 
                     answer_key = ['NNP_Pattern']
                     np = True
+
                     break
                 elif re.search('When',quest[i][0], flags=re.IGNORECASE):
                     answer_key = ["CD"]
@@ -217,7 +257,8 @@ def question_extraction(question, question_with_tag):
                     answer_key= ["PERSON"]
                     np = False
                     break
-                elif re.search('What',quest[i][0], flags=re.IGNORECASE):
+                elif re.search('what',quest[i][0].lower(), flags=re.IGNORECASE):
+                    # print("hi")
                     #np = True
                     # if quest[i+1][1] == "NN" or quest[i+1][1] == "NNS" or  quest[i+1][1] == "VB" or quest[i+1][1] == "VBD" or \
                     #         quest[i+1][1] == "VBZ" or quest[i+1][1] == "VBN" or quest[i+1][1] == "JJ" or \
@@ -256,6 +297,7 @@ def question_extraction(question, question_with_tag):
                     answer_key = ["VB", "VBZ", "VBD", "VBN"]
                     break
                 elif quest[0][1] == "NN" or quest[0][1] == "NNP":
+                    #print(quest)
                     if quest[1][0] == "city":
                         np = False
                         answer_key = ["GPE"]
@@ -278,13 +320,24 @@ def question_extraction(question, question_with_tag):
                 else:
                     np = True
                     answer_key = ["NNP", 'NN','NNS'] #TODO NP
+                    break
         #print(answer_key[num])
+        # print("current num is " +str(num))
+        # print(answer_key)
         question[num].append(answer_key)
         question[num].append(np)
+        # question[num][0].remove(ele for ele in )
         #todo check data structure?
         #to elimiate nl and answerkey
     return question
-
+def clean_question(question):
+    new_ques = copy.deepcopy(question)
+    for quest in new_ques.values():
+        for ele in quest[0]:
+            #print(quest[0])
+            if ele.lower() in kept_words:
+                quest[0].remove(ele)
+    return new_ques
 #passage_with_label = []
 import math
 #def generate_candidate_passages_each_question(question_with_tag, )
@@ -371,7 +424,8 @@ def answer_extract(top_n_passages, single_question):
                 t_list = []
                 # pattern_list = ['NP: {<NNP|NN.*>*}', 'NP: {<DT>?<JJ|PR.*>*<NNP>+}', 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}']
                 # pattern = 'NP: {<DT>?<JJ|PR.*>*<NNP>+}'
-                pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NNP>*}']
+                # pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NNP>*}','NP: {<DT>?<NNP>*}']
+                pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NNP>+}']
                 for pattern in pattern_list:
                     np_parser_list.append(nltk.RegexpParser(pattern))
 
@@ -413,7 +467,8 @@ def answer_extract(top_n_passages, single_question):
                 t_list = []
                 # pattern_list = ['NP: {<NNP|NN.*>*}', 'NP: {<DT>?<JJ|PR.*>*<NNP>+}', 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}']
                 # pattern = 'NP: {<DT>?<JJ|PR.*>*<NNP>+}'
-                pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>}']
+                # pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>}']
+                pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>+}', 'NP: {<DT>?<NN|NNP|NNS>+}']
                 # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
                 # pattern = 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
                 for pattern in pattern_list:
@@ -472,7 +527,7 @@ def answer_extract(top_n_passages, single_question):
 
                     distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
                     list_of_locality.append(distance)
-                    #print("current anewser is "+ str(token[0]) + "current location is " + str(tracker) + "the distance is " + str(abs(loc_keyword - loc_answer)))
+
                     tracker += num_token
                     find_tag=True
                 else:
@@ -482,9 +537,7 @@ def answer_extract(top_n_passages, single_question):
             #print("enter back up ")
             #todo what's the pattern we are looking for?
             pattern ='NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>}'
-            #pattern = 'NP: {<NNP.*>*}'
-            # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
-            # pattern = 'NP: {<NNP.*><VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
+            #pattern = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>+}', 'NP: {<DT>?<NN|NNP|NNS>+}']
             np_parser = nltk.RegexpParser(pattern)
 
             t = np_parser.parse(nltk.pos_tag(ele))
@@ -507,7 +560,7 @@ def answer_extract(top_n_passages, single_question):
     #print(list_of_locality)
     return answer_list,list_answer_type,list_of_locality
 import numpy as np
-def ranking(list_answer_type, list_of_locality,N=10):
+def ranking(list_answer_type, list_of_locality,N=30):
     weighted_ans_type = [ele*0.9 for ele in list_answer_type]
     weighted_locality = [ele*0.1 for ele in list_of_locality]
     weighted_value = np.subtract(weighted_ans_type,weighted_locality)
@@ -535,20 +588,20 @@ if __name__ == "__main__":
     question = preprocessing_question(path)
 
     n_list = list(question.keys())
-   #n_list.remove(8)
-    #n_list.remove(14)
+
     # n_list = [0]
 
     answer = {}
     for n in n_list:
-        print(n)
+        # print(n)
         filename = './training/topdocs/top_docs.' + str(n)
         #filename = './training/top_docs.' + str(n)
-        candidate_passage, voc_list = document_sep(filename,40)
-        bow,question_vectors = vectorize(candidate_passage,voc_list,question, n)
-
-        top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
-        top_n_passages = get_top_n_passages(candidate_passage,top_n_indices)
+        filter_question = clean_question(question)
+        top_n_passages = document_sep(filename,filter_question,n,30,40)
+        # bow,question_vectors = vectorize(candidate_passage,voc_list,question, n)
+        #
+        # top_n_indices = compute_similarity_find_max(bow,question_vectors, 10)
+        # top_n_passages = get_top_n_passages(candidate_passage,top_n_indices)
         # for ele in top_n_passages:
         #     print(ele)
 
@@ -561,26 +614,16 @@ if __name__ == "__main__":
         f.close()
 
         question_with_tag = get_question_with_tag(question)
+        #print(question_with_tag)
         #todo check pointer stuff
-        full_question_info = question_extraction(question,question_with_tag)
+
+        full_question_info = question_extraction(filter_question,question_with_tag)
 
         anwer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages,full_question_info[n])
 
-        #for i in range(len(anwer_list_0)):
-            # print("when answer is " + anwer_list_0[i])
-            # print("the answer type is " + str(list_answer_type_0[i]))
-            # print(" the locality value is " + str(list_locality_0[i]))
-        #
-        #
-        # print("answer_list is: ")
-        # for ele in anwer_list_0:
-        #     print(ele)
         ranking_top_n_indices = ranking(list_answer_type_0,list_locality_0,10)
         final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
-        # print()
-        # print("final answer is: ")
-        # for ans in final_answer:
-        #     print(ans)
+
         answer[n] = final_answer
     write_file(answer)
 
