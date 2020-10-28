@@ -11,19 +11,17 @@ kept_words = ['when','what','why','who','where','which','whom','how']
 for ele in kept_words:
     stop_words.remove(ele)
 kept_words.append("name")
+
 def preprocessing_question(filename):
     """
-    #TODO SENTENCE TOKENIZE USE WORD2VEC TO FIND VECTORIZE EACH SENTENCE AND FIND THE TOP10 MOST
-    SIMILAR ONE FOR THE CANDIDATE PASSAGE
-
     Preprocessing the question file
-    @param filename:
-    @type filename:
-    @return:
-    @rtype:
+    @param filename: the path to the question file
+    @type filename: string
+    @return: questions separated to words; remove stopwords and punctuation
+    @rtype: dictionary with keys of question number and values of list
+            of words in each question
     """
     tokenizer = nltk.RegexpTokenizer(r'\w+')
-    #question_training = []
     question_training = {}
     q_num = 0
     with open(filename, 'rt',encoding = 'utf-8-sig') as file:
@@ -39,36 +37,17 @@ def preprocessing_question(filename):
                     filter_sent = [word for word in word_tokens if not word in stop_words]
                     temp.append(filter_sent)
                     question_training[q_num] = temp
-                    # question_training[q_num].append(current_line)
                     next(file)
         except StopIteration:
             return question_training
 
-    #return question_training
 
-# a = preprocessing_question(path)
-# print(a)
-
-#todo: passage retrieval
-"""
-data structre:  a list of document for each qid , so it will be 50*20 dimension list [[[tokenblock1],[tokenblock2].....20 tokenblocks ],[].....50documents[]]
-1. skip qid, read in as xmlfile
-2. combine all sentences in <p></p> ( we can do tokenize then extend the list) current the list is only 1d
-3. split into 20 blocks --> append each block to the list of document of token blocks 
-4. create bag-of-word for each token block
-5. computer  the dot similarity for each document mean while find the max number & related index 
-6.return the most similar passage (list of 20 tokens)
-
-"""
 new_added_stop_words = ['DATE','SECTION','P','LENGTH','HEADLINE','BYLINE','TEXT','DNO','TYPE','SUBJECT','DOC','DOCID','COUNTRY','EDITION','NAME','PUBDATE',
                'DAY','MONTH','PG','COL','PUBYEAR','REGION','FEATURE','STATE','WORD','CT','DATELINE','COPYRGHT','LIMLEN','LANGUAGE','FILEID','FIRST','SECOND',
                         'HEAD','BYLINE','HL','DOCNO']
 for ele in new_added_stop_words:
     stop_words.add(ele)
 
-
-
-#test_filename =
 def chunks(list, n):
     final_list =[]
 
@@ -77,64 +56,11 @@ def chunks(list, n):
         final_list.append(temp_list)
 
     return final_list
-#todo remove all book information
-#todo think about different features to find candidate passages
+
 def document_sep(filename,question,id,n=20,num_chunks=20):
-    rank = 0
+
     doc = []
-    candidate_passage = []
-    # bow = set()
-    # raw = open(filename, 'r', encoding='latin-1').read()
-    # sentences = nltk.sent_tokenize(raw)
-    # tokenizer = nltk.RegexpTokenizer(r'\w+')
-    # filtered_sentences = []
-    # for sent in sentences:
-    #     if sent.startswith("Qid:"):
-    #         continue
-    #     elif sent.endswith("</DOC>"):
-    #         continue
-    #     else:
-    #         temp_list = sent.split()
-    #         for ele in temp_list:
-    #             if ele.startswith("<"):
-    #                 temp_list.remove(ele)
-    #         new_sent = " ".join(temp_list)
-    #         filter_punct_sent = re.sub('[^\w\s]', '', new_sent)
-    #         filtered_sentences.append(tokenizer.tokenize(filter_punct_sent))
-    # frequency = defaultdict(int)
-    # for text in filtered_sentences:
-    #     for token in text:
-    #         frequency[token] += 1
-    # dictionary = corpora.Dictionary(filtered_sentences)
-    # corpus = [dictionary.doc2bow(text)for text in filtered_sentences]
-    # from gensim import models
-    # lsi = models.LsiModel(corpus, id2word=dictionary, num_topics=2)
-    # current_question = question[id][0]
-    # vec_bow = dictionary.doc2bow(current_question)
-    # vec_lsi = lsi[vec_bow]
-    # from gensim import similarities
-    # index = similarities.MatrixSimilarity(lsi[corpus])
-    # index.save('/tmp/deerwester.index')
-    # index = similarities.MatrixSimilarity.load('/tmp/deerwester.index')
-    # sims = index[vec_lsi]
-    # sims = sorted(enumerate(sims), key=lambda item: -item[1])
-    # i = 0
-    # top_n_passages = []
-    # for i, s in enumerate(sims):
-    #     if i<n:
-    #         top_n_passages.append(filtered_sentences[i])
-    #         #print(s, filtered_sentences[i])
-    #     else:
-    #         break
-    #     i+=1
-    # return top_n_passages
 
-
-
-
-
-
-    # dict_document_tokenblocks ={}
     with open(filename, 'r', encoding='latin-1') as f:
         #large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+,?\d+|\s\w+|\w+\s')
         large_scale_tokenizer = nltk.RegexpTokenizer(r'\d+\smillion|\d+,?\d+|\w+')
@@ -222,7 +148,6 @@ def document_sep(filename,question,id,n=20,num_chunks=20):
 import copy
 #add pos tag for questions
 def get_question_with_tag(question):
-    # new_question = copy.deepcopy(question)
     question_with_tag = {}
     for ques_number in question.keys():
         question_with_tag[ques_number] = nltk.pos_tag(question[ques_number][0])
@@ -231,8 +156,6 @@ def get_question_with_tag(question):
 #todo simplity code currently thinking: dictionary
 # dicide answer types based on different questions
 def question_extraction(question, question_with_tag):
-    # answer_key = {}
-    # np = {}
     answer_key = []
     np=True
     for num in question_with_tag.keys():
@@ -241,10 +164,12 @@ def question_extraction(question, question_with_tag):
                 if re.search('Where',quest[i][0], flags=re.IGNORECASE):
                     answer_key = ["ORGANIZATION", "GPE"]
                     np= False
-                    #question[num][0].remove("Where")
                     break
                 elif re.search('name',quest[i][0].lower(),flags=re.IGNORECASE):
-
+                    if quest[1][0] == "city":
+                        np = False
+                        answer_key = ["GPE"]
+                        break
                     answer_key = ['NNP_Pattern']
                     np = True
 
@@ -258,15 +183,31 @@ def question_extraction(question, question_with_tag):
                     np = False
                     break
                 elif re.search('what',quest[i][0].lower(), flags=re.IGNORECASE):
-                    # print("hi")
-                    #np = True
-                    # if quest[i+1][1] == "NN" or quest[i+1][1] == "NNS" or  quest[i+1][1] == "VB" or quest[i+1][1] == "VBD" or \
-                    #         quest[i+1][1] == "VBZ" or quest[i+1][1] == "VBN" or quest[i+1][1] == "JJ" or \
-                    #         quest[i+1][1] == "JJR" or quest[i+1][1] == "DT":
-
-                    if quest[i+1][0] == "continent" or quest[i+1][0] == "nationality" or quest[i+1][0] == "city" or quest[i+1][0] == "province":
+                    if quest[i+1][0] == "continent" or quest[i+1][0] == "nationality" \
+                            or quest[i+1][0] == "city" or quest[i+1][0] == "province" \
+                            or quest[i+1][0] == "state":
                         np = False
-                        answer_key = ["ORGANIZATION", "GPE"]
+                        answer_key = ["GPE"]
+                        break
+                    elif quest[i+1][1] == "JJ":
+                        if quest[i+2][0] == "model":
+                            np = False
+                            answer_key = ["PERSON"]
+                            break
+                        elif quest[i+2][0] == "tourist":
+                            np = False
+                            answer_key = ["GPE"]
+                            break
+                    elif quest[i+1][0] == "Cruise" or quest[i+1][0] == "university" or \
+                            quest[i+1][0] == "airport" or quest[i+1][0] == "abbreviation" or \
+                            (quest[i+1][0] == "radio" and quest[i+2][0] == "station"):
+                        np = False
+                        answer_key = ["ORGANIZATION"]
+                        break
+
+                    elif quest[i+1][0] == "king":
+                        np = False
+                        answer_key = ["PERSON"]
                         break
                     elif quest[i+1][0] == "name":
                         answer_key = ['NNP_Pattern']
@@ -280,67 +221,42 @@ def question_extraction(question, question_with_tag):
                         np = True
                         answer_key = ["CD"]
                         break
-                    elif quest[i+1][0] == "zip":
+                    elif quest[i+1][0] == "zip" or quest[i+1][0] == "salary":
                         answer_key = ["CD"]
                         np = True
                         break
-                        #break
                     else:
-                        answer_key = ["NNP","NN","NNS"] #TODO NP
+                        answer_key = ["NNP","NN","NNS"]
                         np = True
                         break
-                elif quest[0][1] == "IN":
-                    np = True
-                    if quest[1][1] == "JJ":
-                        answer_key = ["NNP", 'NN'] #TODO NP
-                        break
-                    answer_key = ["VB", "VBZ", "VBD", "VBN"]
-                    break
-                elif quest[0][1] == "NN" or quest[0][1] == "NNP":
-                    #print(quest)
-                    if quest[1][0] == "city":
-                        np = False
-                        answer_key = ["GPE"]
-                    break
-                    np = True
-                    answer_key = ["NNP", 'NN','NNS']#TODO NP
-                    break
                 elif quest[0][0] == "How":
                     if quest[1][0] == "many":
                         np = True
                         answer_key = ["CD"]
                         break
                     np = True
-                    answer_key = ["NNP", 'NN','NNS'] #TODO NP
-                    break
-                elif quest[0][1] == "MD":
-                    np = True
-                    answer_key = ["NNP", 'NN','NNS'] #TODO NP
+                    answer_key = ["NNP", 'NN','NNS']
                     break
                 else:
                     np = True
-                    answer_key = ["NNP", 'NN','NNS'] #TODO NP
+                    answer_key = ["NNP", 'NN','NNS']
                     break
-        #print(answer_key[num])
-        # print("current num is " +str(num))
-        # print(answer_key)
+
         question[num].append(answer_key)
         question[num].append(np)
-        # question[num][0].remove(ele for ele in )
+
         #todo check data structure?
-        #to elimiate nl and answerkey
     return question
+
 def clean_question(question):
     new_ques = copy.deepcopy(question)
     for quest in new_ques.values():
         for ele in quest[0]:
-            #print(quest[0])
             if ele.lower() in kept_words:
                 quest[0].remove(ele)
     return new_ques
-#passage_with_label = []
+
 import math
-#def generate_candidate_passages_each_question(question_with_tag, )
 def find_location (list_index):
     return sum(list_index)/len(list_index)
 
@@ -351,6 +267,32 @@ def find_closest_distance_to_any_keyword(loc_ans, list_index):
         if distance > current_distance:
             distance = current_distance
     return distance
+
+def np_pattern_extraction(answer_list, list_index, list_answer_type,
+                          list_of_locality, keyword_list, find_tag,
+                          child, tracker, type_match):
+    current_list = []
+    for x in child.leaves():
+        if x[0] in keyword_list:
+            current_list = []
+            break
+        else:
+            current_list.append(x[0])
+
+    if len(current_list) > 0:
+        x = ' '.join(current_list)
+        answer_list.append(x)
+        num_token = len(child.leaves())
+        list_answer_type.append(type_match)
+        loc_answer = (tracker + tracker + num_token - 1) / 2
+        # print("current anewser is " + str(x) + "current location is " + str(tracker) + "the distance is " + str(abs(loc_keyword - loc_answer)))
+        distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
+        list_of_locality.append(distance)
+        tracker += num_token
+        find_tag = True
+
+    return answer_list, list_answer_type, list_of_locality, tracker, find_tag
+
 
 def answer_extract(top_n_passages, single_question):
     """
@@ -391,13 +333,12 @@ def answer_extract(top_n_passages, single_question):
             loc_keyword = 0
         else:
             loc_keyword = find_location(list_index)
-            #print("the location of keyword is " + str(loc_keyword))
-        #todo, deal with undefined
-        #find pos tag
+
         if np:
 
             passage_with_tag = nltk.pos_tag(ele)
             tracker = 0
+
             if tag_looing_for[0] == "CD":
                 for token in passage_with_tag:
                     if token[1] in tag_looing_for:
@@ -408,18 +349,15 @@ def answer_extract(top_n_passages, single_question):
 
                         answer_list.append(token[0])
                         list_answer_type.append(1.0)
-                        #print answer loc
 
                         loc_answer = tracker
                         distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
-                        #print("current anewser is " + str(token[0]) + "current location is " + str(tracker) + "the distance is " + str(distance))
                         list_of_locality.append(distance)
                         find_tag = True
                     tracker += 1
 
 
             elif tag_looing_for[0] == "NNP_Pattern":
-
                 np_parser_list = []
                 t_list = []
                 # pattern_list = ['NP: {<NNP|NN.*>*}', 'NP: {<DT>?<JJ|PR.*>*<NNP>+}', 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}']
@@ -436,38 +374,18 @@ def answer_extract(top_n_passages, single_question):
                     tracker = 0
                     for child in t:
                         if type(child) == nltk.tree.Tree:
-                            # todo simplify
-                            current_list = []
-                            for x in child.leaves():
-                                if x[0] in keyword_list:
-                                    current_list = []
-                                    break
-                                else:
-                                    current_list.append(x[0])
-
-
-                            if len(current_list)>0:
-                                x = ' '.join(current_list)
-                                answer_list.append(x)
-                                num_token = len(child.leaves())
-                                list_answer_type.append(1.0)
-                                loc_answer = (tracker + tracker + num_token - 1) / 2
-                                # print("current anewser is " + str(x) + "current location is " + str(tracker) + "the distance is " + str(abs(loc_keyword - loc_answer)))
-                                distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
-                                list_of_locality.append(distance)
-                                tracker += num_token
-                                find_tag = True
+                            answer_list, list_answer_type, \
+                            list_of_locality, tracker, find_tag = \
+                                np_pattern_extraction(answer_list, list_index, list_answer_type,
+                                                      list_of_locality, keyword_list, find_tag,
+                                                      child, tracker, 1.0)
                         else:
                             tracker += 1
 
-            else:
-                #for token in passage_with_tag:
 
+            else:
                 np_parser_list = []
                 t_list = []
-                # pattern_list = ['NP: {<NNP|NN.*>*}', 'NP: {<DT>?<JJ|PR.*>*<NNP>+}', 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}']
-                # pattern = 'NP: {<DT>?<JJ|PR.*>*<NNP>+}'
-                # pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>}']
                 pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>+}', 'NP: {<DT>?<NN|NNP|NNS>+}']
                 # pattern = 'NP: {<NNP.*><VBD|VB|VBZ|VBN|VBG><DT>?<NNP>}'
                 # pattern = 'NP: {<NNP.*>*<VB|VBD|VBZ|VBN|VBG><NNP.*>?<DT>?<NNP.*>}'
@@ -480,88 +398,49 @@ def answer_extract(top_n_passages, single_question):
                     tracker =0
                     for child in t:
                         if type(child) == nltk.tree.Tree:
-                            # todo simplify
-
-                            x = ' '.join(x[0] for x in child.leaves())
-                            if x in keyword_list:
-                                continue
-                            #if x not in answer_list:
-                            answer_list.append(x)
-                            num_token = len(child.leaves())
-                            list_answer_type.append(1.0)
-                            loc_answer = (tracker + tracker + num_token-1) / 2
-                            #print("current anewser is " + str(x) + "current location is " + str(tracker) + "the distance is " + str(abs(loc_keyword - loc_answer)))
-                            distance =find_closest_distance_to_any_keyword(loc_answer,list_index)
-                            list_of_locality.append(distance)
-                            tracker += num_token
-                            find_tag = True
+                            answer_list, list_answer_type, \
+                            list_of_locality, tracker, find_tag = \
+                                np_pattern_extraction(answer_list, list_index, list_answer_type,
+                                                      list_of_locality, keyword_list, find_tag,
+                                                      child, tracker, 1.0)
                         else:
                             tracker += 1
-                #todo: if NP : then directly go to find NP pattern
-                # if token[1] in tag_looing_for:
-                #     # todo: check assumption here only one word ?is np really bad?
-                #     #todo after testing performance change to token[0]
-                #     answer_list.append(token)
-                #     list_answer_type.append(1.0)
-                #     list_of_locality.append(abs(loc_keyword - tracker))
-                #     find_tag = True
-                # tracker += 1
         else:
-            #find ne tag!
+            #find ne tag
             token_pos_list = nltk.pos_tag(ele)
             passage_with_tag = nltk.ne_chunk(token_pos_list)
             tracker = 0
             for child in passage_with_tag:
 
                 if type(child) == nltk.tree.Tree and child.label() in tag_looing_for:
-
-
-                    ans = ' '.join(x[0] for x in child.leaves())
-                    # if ans not in answer_list:
-                    if ans in keyword_list:
-                        continue
-                    answer_list.append(ans)
-                    num_token = len(child.leaves())
-                    loc_answer = (tracker + tracker + num_token-1) / 2
-                    list_answer_type.append(1.0)
-
-                    distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
-                    list_of_locality.append(distance)
-
-                    tracker += num_token
-                    find_tag=True
+                    answer_list, list_answer_type, \
+                    list_of_locality, tracker, find_tag = \
+                        np_pattern_extraction(answer_list, list_index, list_answer_type,
+                                              list_of_locality, keyword_list, find_tag,
+                                              child, tracker, 1.0)
                 else:
                     tracker +=1
-        #BACK UP PLAN NP
+
         if find_tag==False:
-            #print("enter back up ")
-            #todo what's the pattern we are looking for?
             pattern ='NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>}'
-            #pattern = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>+}', 'NP: {<DT>?<NN|NNP|NNS>+}']
             np_parser = nltk.RegexpParser(pattern)
 
             t = np_parser.parse(nltk.pos_tag(ele))
             tracker = 0
             for child in t:
                 if type(child) == nltk.tree.Tree:
-                    #todo simplify
-                    x = ' '.join(x[0] for x in child.leaves())
-                    if x in keyword_list:
-                        continue
-                    answer_list.append(x)
-                    num_token = len(child.leaves())
-                    list_answer_type.append(0.0)
-                    loc_answer = (tracker+tracker+num_token-1)/2
-                    distance = find_closest_distance_to_any_keyword(loc_answer, list_index)
-                    list_of_locality.append(distance)
-                    tracker+= num_token
+                    answer_list, list_answer_type, \
+                    list_of_locality, tracker, find_tag = \
+                        np_pattern_extraction(answer_list, list_index, list_answer_type,
+                                              list_of_locality, keyword_list, find_tag,
+                                              child, tracker, 0.0)
                 else:
                     tracker+=1
-    #print(list_of_locality)
     return answer_list,list_answer_type,list_of_locality
+
 import numpy as np
 def ranking(list_answer_type, list_of_locality,N=30):
-    weighted_ans_type = [ele*0.9for ele in list_answer_type]
+    weighted_ans_type = [ele*0.9 for ele in list_answer_type]
     weighted_locality = [ele*0.1 for ele in list_of_locality]
     weighted_value = np.subtract(weighted_ans_type,weighted_locality)
     top_n_indices = np.argsort(weighted_value.tolist())[-N:]
