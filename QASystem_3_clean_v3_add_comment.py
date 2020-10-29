@@ -1,8 +1,8 @@
 import nltk
 import re
-import evaluation_2 as eval
+from gensim import models
 from gensim import corpora
-
+from gensim import models
 #new location  features
 path = './training/qadata/questions.txt'
 stop_words = set(nltk.corpus.stopwords.words('english'))
@@ -123,14 +123,14 @@ def document_sep(filename,question,id,n=20,num_chunks=20):
 
                         current_tokens = large_scale_tokenizer.tokenize(current_line)
                         filter_token = [word for word in current_tokens
-                                        if not word in stop_words]
+                                        if not word in stop_words and word.isupper() == False]
                         doc.extend(filter_token)
 
         except StopIteration:
             filtered_sentences = chunks(doc, num_chunks)
             dictionary = corpora.Dictionary(filtered_sentences)
             corpus = [dictionary.doc2bow(text)for text in filtered_sentences]
-            from gensim import models
+
             lsi = models.LsiModel(corpus, id2word=dictionary, num_topics=2)
             current_question = question[id][0]
             vec_bow = dictionary.doc2bow(current_question)
@@ -602,61 +602,10 @@ def predict(question, topn, chunk):
         answer[n] = final_answer
     write_file(answer)
 
-def tune_param(question):
-    '''
-    This functions find the best parameters of number of top n blocks
-    and number of tokens in a block. And, it uses the best parameter
-    to run the whole QA System.
-    :param question: a dictionary of questions.
-    :return: None
-    '''
-
-    num_of_top_candidates= [25,27,30]
-    chunk_num = [40]
-    mrr = -math.inf
-    for topn in num_of_top_candidates:
-        for chunk in chunk_num:
-            predict(question,topn,chunk)
-            cur_mrr = eval.evaluation_pipeline('./training/qadata/answer_patterns.txt','prediction_file.txt')
-            if cur_mrr>mrr:
-                mrr = cur_mrr
-                final_chunk = chunk
-                final_topn = topn
-    print("best chunk is " + str(final_chunk))
-    print("best topn is " + str(final_topn))
-    predict(question,final_topn,final_chunk)
-
     #final use the best param
 
 if __name__ == "__main__":
     #todo 8 problem
 
     question = preprocessing_question(path)
-    tune_param(question)
-    # n_list = list(question.keys())
-
-    #n_list = [12]
-
-    # answer = {}
-    # for n in n_list:
-    #
-    #     filename = './training/topdocs/top_docs.' + str(n)
-    #     #filename = './training/top_docs.' + str(n)
-    #     filter_question = clean_question(question)
-    #
-    #     top_n_passages = document_sep(filename,filter_question,n,27,40)
-    #
-    #     question_with_tag = get_question_with_tag(question)
-    #     #todo check pointer stuff
-    #
-    #     full_question_info = question_extraction(filter_question,question_with_tag)
-    #     anwer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages,full_question_info[n])
-    #
-    #     ranking_top_n_indices = ranking(list_answer_type_0,list_locality_0,10)
-    #     final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
-    #
-    #     answer[n] = final_answer
-    # write_file(answer)
-
-
-
+    predict(question, 27,40)

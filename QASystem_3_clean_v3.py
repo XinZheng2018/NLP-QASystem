@@ -1,8 +1,8 @@
 import nltk
-import spacy
 import re
-import evaluation_2 as eval
 from gensim import corpora
+from gensim import similarities
+from gensim import models
 
 #new location  features
 path = './training/qadata/questions.txt'
@@ -58,6 +58,19 @@ def chunks(list, n):
     return final_list
 
 def document_sep(filename,question,id,n=20,num_chunks=20):
+    '''
+    This function separate all related documents of a given question into
+    n-tokens block and compare the similarity between the question and the
+    n-token block. Then, this functions returns the top n most similar blocks.
+
+    :param filename: The path to the document file of a given question
+    :param question: the question
+    :param id: question id
+    :param n: the number of tokens in one block
+    :param num_chunks: number of blocks that are returned
+    :return: return a list of list with top-scored n-token blocks
+
+        '''
     doc = []
     # dict_document_tokenblocks ={}
     with open(filename, 'r', encoding='latin-1') as f:
@@ -103,27 +116,18 @@ def document_sep(filename,question,id,n=20,num_chunks=20):
 
                         current_tokens = large_scale_tokenizer.tokenize(current_line)
                         filter_token = [word for word in current_tokens if not word in stop_words]
-                        # for ele in filter_token:
-                        #     bow.add(ele)
+
                         doc.extend(filter_token)
-                        #current_line = next(f)
 
-                   # while "Rank" not in current_line:
-
-
-                    # candidate_passage = chunks(doc,n)
-                    # dict_document_tokenblocks[current_docno]=candidate_passage
         except StopIteration:
-            # print('EOF!')
+
             filtered_sentences = chunks(doc, num_chunks)
             dictionary = corpora.Dictionary(filtered_sentences)
             corpus = [dictionary.doc2bow(text)for text in filtered_sentences]
-            from gensim import models
             lsi = models.LsiModel(corpus, id2word=dictionary, num_topics=2)
             current_question = question[id][0]
             vec_bow = dictionary.doc2bow(current_question)
             vec_lsi = lsi[vec_bow]
-            from gensim import similarities
             index = similarities.MatrixSimilarity(lsi[corpus])
             index.save('/tmp/deerwester.index')
             index = similarities.MatrixSimilarity.load('/tmp/deerwester.index')
@@ -142,6 +146,13 @@ def document_sep(filename,question,id,n=20,num_chunks=20):
 import copy
 #add pos tag for questions
 def get_question_with_tag(question):
+    '''
+    This funtion add pos tags for questions
+    :param question: a dictionary of questions; keys are question numbers;
+            values are question contents.
+    :return: a dictionary of questions with tags; keys are question numbers;
+            values are list of tuples, with words and pos tags in tuple
+    '''
     question_with_tag = {}
     for ques_number in question.keys():
         question_with_tag[ques_number] = nltk.pos_tag(question[ques_number][0])
@@ -155,15 +166,25 @@ org_what = ["Cruise","university","airport","radio"]
 cd_what=["population","year","zip","salary"]
 
 def question_extraction(question, question_with_tag):
+    '''
+       This function determines what type of answers each question will have.
 
-    # print(question_with_tag)
+       :param question: original dictionary of questions; keys are question id;
+               values are list of words in the question
+       :param question_with_tag: questions with added pos tag
+       :return: a dictionary with keys of question number; values of list of three
+               elements: first, a list of words in questions; second, answer type,
+               a list of answer tags we are looking for; third, a flag indicating
+               whether it will use a noun phrase pattern
+       '''
+
     answer_key = []
     np=True
     for num in question_with_tag.keys():
         quest = question_with_tag[num]
 
         for i in range(0,len(quest)):
-            # print(quest[i][0].lower())
+
             if quest[i][0].lower() in easy_question_type.keys():
 
                 answer_key = easy_question_type[quest[i][0].lower()][0]
@@ -189,9 +210,18 @@ def question_extraction(question, question_with_tag):
                         np = False
                         answer_key = ["PERSON"]
                         break
+                    if quest[i+2][0] == "name":
+                        np=True
+                        answer_key = ['NNP_Pattern']
+                        break
                     elif quest[i+2][0] == "tourist":
                         np = False
                         answer_key = ["GPE"]
+                elif quest[i + 1][1] == "DT":
+                    if quest[i+2][0] == "name":
+                        np = True
+                        answer_key = ['NNP_Pattern']
+                        break
 
                 elif quest[i+1][0] in org_what:
                     np = False
@@ -233,6 +263,14 @@ def question_extraction(question, question_with_tag):
         #todo check data structure?
     return question
 def clean_question(question):
+    '''
+    This functions removes what, when, why, who, how, whom, where, name from
+    contents of questions.
+
+    :param question: a dictionary with keys of question id and values of list
+            of words in question.
+    :return: a dictionary of question after removing the words indicated above
+    '''
     new_ques = copy.deepcopy(question)
     for quest in new_ques.values():
         for ele in quest[0]:
@@ -241,9 +279,23 @@ def clean_question(question):
     return new_ques
 import math
 def find_location (list_index):
+    '''
+    This function computes the averaged location of a list of indices of words
+    :param list_index: a list of indices of words
+    :return: an averaged location
+    '''
+
     return sum(list_index)/len(list_index)
 
 def find_closest_distance_to_any_keyword(loc_ans, list_index):
+    '''
+    This function finds the distance of an answer to the closest keywords.
+
+    :param loc_ans: location of the answer
+    :param list_index: list of index of all keywords
+    :return: the distance between the the answer with the closest keywords
+    '''
+
     distance = math.inf
     for ele in list_index:
         current_distance = abs(loc_ans-ele)
@@ -254,6 +306,19 @@ def find_closest_distance_to_any_keyword(loc_ans, list_index):
 
 
 def ne_pattern_extraction(ele,tag_looking_for,keyword_list,list_index,answer_list,list_answer_type,list_of_locality):
+    '''
+    This function finds the answer which matches the ne pattern
+    in the candidate passage .
+
+    :param ele: one block in top n candidate blocks
+    :param tag_looking_for: the answer tag we are looking for
+    :param keyword_list: list of keywords in questions
+    :param list_index: list of indices of keywords
+    :param answer_list: list of answers
+    :param list_answer_type: list of answer tags
+    :param list_of_locality: list of location of answers
+    :return: if we find the answer, return true; else return false
+    '''
     find_tag = False
     token_pos_list = nltk.pos_tag(ele)
     passage_with_tag = nltk.ne_chunk(token_pos_list)
@@ -281,11 +346,24 @@ def ne_pattern_extraction(ele,tag_looking_for,keyword_list,list_index,answer_lis
                 find_tag = True
         else:
             tracker += 1
-    # print(find_tag)
+
     return find_tag
 
 
 def find_cd_answer (passage_with_tag,keyword_list,answer_list,tracker,list_answer_type,list_index,list_of_locality):
+    '''
+    This function finds the answer which matches the ne tag, cd,
+    in the candidate passage .
+
+    :param passage_with_tag: one block of top n blocks with tags
+    :param keyword_list: list of keywords in answers
+    :param answer_list: list of answers
+    :param tracker: tracker which tracks the location of the answer
+    :param list_answer_type: list of answer tags
+    :param list_index: list of indices of keywords
+    :param list_of_locality: list of location of answers
+    :return: if we find the answer, return true; else return false
+    '''
     find_tag = False
     #find token with tag CD
     for token in passage_with_tag:
@@ -305,18 +383,33 @@ def find_cd_answer (passage_with_tag,keyword_list,answer_list,tracker,list_answe
     return find_tag
 
 def different_pattern_np_extractor(ele,keyword_list,list_index,list_answer_type,answer_list,list_of_locality,type_match,pattern_id):
+    '''
+      This function finds the answer which matches the ne pattern
+    in the candidate passage .
+
+    :param ele: one block in top n candidate blocks
+    :param keyword_list: list of keywords in questions
+    :param list_index: list of indices of keywords
+    :param list_answer_type: list of answer tags
+    :param answer_list: list of answers
+    :param list_of_locality: list of locations of answers
+    :param type_match: if the answer type matches the type we are looking for,
+            type_match is 1.0; else type_match is 0.0
+    :param pattern_id: the specific pattern we are looking for
+    :return: if we find the answer, return true; else return false
+    '''
     np_parser_list = []
     t_list = []
     find_tag = False
     if pattern_id == 1:
         pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NNP>+}']
-        # type_match = 1.0
+
     elif pattern_id ==2:
         pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>+}', 'NP: {<DT>?<NN|NNP|NNS>+}']
-        # type_match = 1.0
+
     else:
         pattern_list = ['NP: {<DT>?<JJ|PR.*>*<NN|NNP|NNS>}']
-        # type_match = 0.0
+
 
     for pattern in pattern_list:
         np_parser_list.append(nltk.RegexpParser(pattern))
@@ -377,9 +470,7 @@ def answer_extract(top_n_passages, single_question):
 
         for word in ele:
             if word in keyword_list:
-
                 list_index.append(i)
-
             i+=1
         if np:
 
@@ -411,7 +502,18 @@ def answer_extract(top_n_passages, single_question):
 
 
 import numpy as np
-def ranking(list_answer_type, list_of_locality,N=30):
+def ranking(list_answer_type, list_of_locality,N=10):
+    '''
+    This function ranks all the candidate answers. The ranking is determined
+    with 0.9 weight of whether the type matches the type we want; and 0.1
+    weight of how close the answer is to the keywords
+
+    :param list_answer_type: list of 0.0 and 1.0; 1.0 indicates the answer matches
+            the type we want; 0.0 indictes it does not match.
+    :param list_of_locality: list of locations of answers
+    :param N: top n answers we want
+    :return: list of top n answers
+    '''
     weighted_ans_type = [ele*0.9 for ele in list_answer_type]
     weighted_locality = [ele*0.1 for ele in list_of_locality]
     weighted_value = np.subtract(weighted_ans_type,weighted_locality)
@@ -424,6 +526,11 @@ def ranking(list_answer_type, list_of_locality,N=30):
 # add tags using spacy
 
 def write_file(answer):
+    '''
+    This function writes the results to a file.
+    :param answer: list of final answer
+    :return: None
+    '''
     f = open("prediction_file.txt", "w")
     for elem in answer:
         f.write("qid " + str(elem))
@@ -433,8 +540,17 @@ def write_file(answer):
             f.write("\n")
     f.close()
 def predict(question, topn, chunk):
+    '''
+    This functions runs the whole QA system.
+
+    :param question: dictionary of all questions
+    :param topn: top n most similar blocks to question
+    :param chunk: number of tokens in a block
+    :return: None
+    '''
     answer = {}
     n_list = list(question.keys())
+    #n_list = [114]
     for n in n_list:
 
         filename = './training/topdocs/top_docs.' + str(n)
@@ -456,79 +572,25 @@ def predict(question, topn, chunk):
 
         full_question_info = question_extraction(filter_question, question_with_tag)
 
-        anwer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages, full_question_info[n])
-
+        answer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages, full_question_info[n])
+        for i in range(len(answer_list_0)):
+            print(answer_list_0[i])
+            print(list_answer_type_0[i])
+            print(list_locality_0[i])
+            print()
         ranking_top_n_indices = ranking(list_answer_type_0, list_locality_0, 10)
-        final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
-
+        final_answer = [answer_list_0[ele] for ele in ranking_top_n_indices]
+        # answer_list
         answer[n] = final_answer
     write_file(answer)
 
-def tune_param(question):
-
-    #
-    num_of_top_candidates= [25,27,30]
-    chunk_num = [40]
-    #test
-    # num_of_top_candidates= [27]
-    # chunk_num = [40]
-    mrr = -math.inf
-    # final_chunk = 0
-    # final_topn = 0
-    for topn in num_of_top_candidates:
-        for chunk in chunk_num:
-            predict(question,topn,chunk)
-            cur_mrr = eval.evaluation_pipeline('./training/qadata/answer_patterns.txt','prediction_file.txt')
-            if cur_mrr>mrr:
-                mrr = cur_mrr
-                final_chunk = chunk
-                final_topn = topn
-    print("best chunk is " + str(final_chunk))
-    print("best topn is " + str(final_topn))
-    predict(question,final_topn,final_chunk)
-
-    #final use the best param
 
 if __name__ == "__main__":
     #todo 8 problem
 
     question = preprocessing_question(path)
-    tune_param(question)
-    # n_list = list(question.keys())
+    predict(question,27,40)
 
-    #n_list = [12]
-
-    # answer = {}
-    # for n in n_list:
-    #
-    #     filename = './training/topdocs/top_docs.' + str(n)
-    #     #filename = './training/top_docs.' + str(n)
-    #     filter_question = clean_question(question)
-    #
-    #     top_n_passages = document_sep(filename,filter_question,n,27,40)
-    #
-    #
-    #     f = open("candidatepassage.txt", "w")
-    #     for elem in top_n_passages:
-    #         for ele in elem:
-    #             f.write(ele)
-    #             f.write("\t")
-    #         f.write("\n")
-    #     f.close()
-    #
-    #     question_with_tag = get_question_with_tag(question)
-    #     #print(question_with_tag)
-    #     #todo check pointer stuff
-    #
-    #     full_question_info = question_extraction(filter_question,question_with_tag)
-    #     # print(filter_question[n][1])
-    #     anwer_list_0, list_answer_type_0, list_locality_0 = answer_extract(top_n_passages,full_question_info[n])
-    #
-    #     ranking_top_n_indices = ranking(list_answer_type_0,list_locality_0,10)
-    #     final_answer = [anwer_list_0[ele] for ele in ranking_top_n_indices]
-    #
-    #     answer[n] = final_answer
-    # write_file(answer)
 
 
 
